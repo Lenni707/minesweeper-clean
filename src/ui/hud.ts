@@ -1,18 +1,20 @@
-// Top bar (mines left · level · time) and bottom dock (stats, settings, mode toggle, fit, restart).
+// Game screen chrome: back arrow · mines left / time · palette, and the round flag toggle.
 
+import type { ThemeId } from '../state/storage';
 import { icons } from './icons';
+import { THEMES } from './themes';
 
 export type Mode = 'reveal' | 'flag';
 
-export function formatTime(ms: number, tenths = false): string {
-  const total = Math.max(0, ms) / 1000;
+/** "38S", "3M 41S", "1H 2M": the original's format. */
+export function formatTime(ms: number): string {
+  const total = Math.floor(Math.max(0, ms) / 1000);
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
-  const s = Math.floor(total % 60);
-  const pad = (n: number) => String(n).padStart(2, '0');
-  let out = h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
-  if (tenths) out += `.${Math.floor((total * 10) % 10)}`;
-  return out;
+  const s = total % 60;
+  if (h > 0) return `${h}H ${m}M`;
+  if (m > 0) return `${m}M ${s}S`;
+  return `${s}S`;
 }
 
 /** Renders a string one span per character; changed characters roll in from below. */
@@ -45,70 +47,78 @@ class Ticker {
   }
 }
 
+/** The palette button; tapping it slides out a row of theme dots (ring = background, dot = accent). */
+export function paletteButton(current: () => ThemeId, pick: (id: ThemeId) => void): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'palette';
+  const dots = THEMES.map(
+    (t, k) =>
+      `<button type="button" class="dot" data-theme-id="${t.id}" style="--ring:${t.bg};--fill:${t.accent};--k:${THEMES.length - k}" aria-label="${t.id} theme"></button>`,
+  ).join('');
+  wrap.innerHTML = `<div class="dots">${dots}</div><button type="button" class="icon-btn palette-btn" aria-label="Themes">${icons.palette}</button>`;
+  const mark = () =>
+    wrap.querySelectorAll<HTMLElement>('.dot').forEach((d) => d.classList.toggle('on', d.dataset.themeId === current()));
+  const close = (e: Event) => {
+    if (!wrap.contains(e.target as Node)) setOpen(false);
+  };
+  const setOpen = (open: boolean) => {
+    wrap.classList.toggle('open', open);
+    if (open) {
+      mark();
+      setTimeout(() => document.addEventListener('pointerdown', close), 0);
+    } else {
+      document.removeEventListener('pointerdown', close);
+    }
+  };
+  wrap.querySelector('.palette-btn')!.addEventListener('click', () => setOpen(!wrap.classList.contains('open')));
+  wrap.querySelector('.dots')!.addEventListener('click', (e) => {
+    const dot = (e.target as HTMLElement).closest<HTMLElement>('.dot');
+    if (!dot) return;
+    pick(dot.dataset.themeId as ThemeId);
+    mark();
+  });
+  return wrap;
+}
+
 export interface HudHandlers {
-  level(): void;
-  stats(): void;
-  settings(): void;
-  fit(): void;
-  restart(): void;
+  back(): void;
   mode(m: Mode): void;
+  fit(): void;
 }
 
 export class Hud {
   readonly top: HTMLElement;
-  readonly dock: HTMLElement;
+  readonly fab: HTMLButtonElement;
   private mines: Ticker;
   private time: Ticker;
-  private levelName: HTMLElement;
-  private levelSub: HTMLElement;
-  private toggle: HTMLElement;
-  private restartBtn: HTMLButtonElement;
+  private mode: Mode = 'reveal';
 
-  constructor(h: HudHandlers) {
+  constructor(h: HudHandlers, palette: HTMLElement) {
     this.top = document.createElement('header');
-    this.top.className = 'top';
+    this.top.className = 'bar';
     this.top.innerHTML = `
-      <div class="stat stat-mines" aria-label="Mines left">${icons.flag}<span class="ticker"></span></div>
-      <button class="level" type="button" aria-label="Choose difficulty">
-        <span class="level-text"><span class="level-name"></span><span class="level-sub"></span></span>
-        ${icons.chevron}
-      </button>
-      <div class="stat stat-time" aria-label="Time">${icons.timer}<span class="ticker"></span></div>`;
-
-    this.dock = document.createElement('nav');
-    this.dock.className = 'dock';
-    this.dock.innerHTML = `
-      <button class="icon-btn" data-act="stats" type="button" aria-label="Statistics">${icons.stats}</button>
-      <button class="icon-btn" data-act="settings" type="button" aria-label="Settings">${icons.settings}</button>
-      <div class="mode" role="radiogroup" aria-label="Tap action">
-        <span class="mode-thumb"></span>
-        <button type="button" role="radio" data-mode="reveal" aria-label="Tap reveals">${icons.tap}</button>
-        <button type="button" role="radio" data-mode="flag" aria-label="Tap flags">${icons.flag}</button>
+      <button class="icon-btn" data-act="back" type="button" aria-label="Back to menu">${icons.back}</button>
+      <div class="status">
+        <span class="status-mines">${icons.mine}<span class="ticker"></span></span>
+        <span class="status-time ticker"></span>
       </div>
-      <button class="icon-btn" data-act="fit" type="button" aria-label="Fit board to screen">${icons.fit}</button>
-      <button class="icon-btn restart" data-act="restart" type="button" aria-label="New game">${icons.restart}</button>`;
+      <span class="bar-spacer"></span>
+      <button class="icon-btn fit-btn" data-act="fit" type="button" aria-label="Fit board to screen">${icons.fit}</button>`;
+    this.top.appendChild(palette);
 
-    this.mines = new Ticker(this.top.querySelector('.stat-mines .ticker')!);
-    this.time = new Ticker(this.top.querySelector('.stat-time .ticker')!);
-    this.levelName = this.top.querySelector('.level-name')!;
-    this.levelSub = this.top.querySelector('.level-sub')!;
-    this.toggle = this.dock.querySelector('.mode')!;
-    this.restartBtn = this.dock.querySelector('.restart')!;
+    this.fab = document.createElement('button');
+    this.fab.type = 'button';
+    this.fab.className = 'fab';
+    this.fab.setAttribute('aria-label', 'Flag mode');
+    this.fab.setAttribute('aria-pressed', 'false');
+    this.fab.innerHTML = icons.flag;
 
-    this.top.querySelector('.level')!.addEventListener('click', () => h.level());
-    this.dock.addEventListener('click', (e) => {
-      const btn = (e.target as HTMLElement).closest('button');
-      if (!btn) return;
-      const mode = btn.dataset.mode as Mode | undefined;
-      if (mode) return h.mode(mode);
-      const act = btn.dataset.act as 'stats' | 'settings' | 'fit' | 'restart' | undefined;
-      if (act === 'restart') {
-        this.restartBtn.classList.remove('spin');
-        void this.restartBtn.offsetWidth;
-        this.restartBtn.classList.add('spin');
-      }
-      if (act) h[act]();
-    });
+    this.mines = new Ticker(this.top.querySelector('.status-mines .ticker')!);
+    this.time = new Ticker(this.top.querySelector('.status-time')!);
+
+    this.top.querySelector('[data-act=back]')!.addEventListener('click', () => h.back());
+    this.top.querySelector('[data-act=fit]')!.addEventListener('click', () => h.fit());
+    this.fab.addEventListener('click', () => h.mode(this.mode === 'reveal' ? 'flag' : 'reveal'));
   }
 
   setMines(n: number, animate = true): void {
@@ -119,20 +129,13 @@ export class Hud {
     this.time.set(formatTime(ms), animate);
   }
 
-  setLevel(name: string, sub: string): void {
-    this.levelName.textContent = name;
-    this.levelSub.textContent = sub;
-  }
-
   setMode(m: Mode): void {
-    this.toggle.dataset.mode = m;
-    for (const b of this.toggle.querySelectorAll<HTMLElement>('button')) {
-      b.setAttribute('aria-checked', String(b.dataset.mode === m));
-    }
+    this.mode = m;
+    this.fab.setAttribute('aria-pressed', String(m === 'flag'));
   }
 
   showToggle(show: boolean): void {
-    this.dock.classList.toggle('no-toggle', !show);
+    this.fab.hidden = !show;
   }
 
   setState(state: 'ready' | 'playing' | 'won' | 'lost'): void {

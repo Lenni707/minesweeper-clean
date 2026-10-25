@@ -1,6 +1,6 @@
 import type { SavedGame } from '../engine/board';
 
-export type ThemeId = 'light' | 'dark' | 'black' | 'sage' | 'sand' | 'grape';
+export type ThemeId = 'sand' | 'olive' | 'ember' | 'steel' | 'rose' | 'ocean' | 'forest' | 'berry' | 'neon';
 export type ToggleMode = 'auto' | 'always' | 'never';
 
 export interface Settings {

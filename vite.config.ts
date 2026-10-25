@@ -18,8 +18,8 @@ export default defineConfig({
         scope: base,
         display: 'standalone',
         orientation: 'any',
-        background_color: '#f4f5f7',
-        theme_color: '#f4f5f7',
+        background_color: '#0e1922',
+        theme_color: '#0e1922',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -29,7 +29,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // The UI is English-only; other Inter subsets load on demand if ever needed.
-        globIgnores: ['**/inter-{cyrillic,greek,vietnamese}*'],
+        globIgnores: ['**/rubik-{arabic,cyrillic,cyrillic-ext,hebrew}-*'],
       },
     }),
   ],

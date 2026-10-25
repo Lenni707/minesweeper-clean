@@ -2,8 +2,8 @@
 // and moved with a transform. During a gesture we only change the transform (cheap); when it
 // settles we commit the new cell size into the layout so text re-rasterises crisply.
 
-/** Gap between cells, as a fraction of the cell size (mirrors board.css). */
-export const GAP = 0.1;
+/** Gap between cells, as a fraction of the cell size. The hidden area is one solid shape, so 0. */
+export const GAP = 0;
 
 export interface ViewportOptions {
   minCell: number;

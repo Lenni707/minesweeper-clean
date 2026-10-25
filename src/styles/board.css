@@ -3,7 +3,6 @@
   overflow: hidden;
   touch-action: none;
   min-height: 0;
-  cursor: default;
 }
 
 .stage.grabbing {
@@ -13,13 +12,16 @@
 .board {
   --cell: 32px;
   --lp: 300ms;
+  /* corner radius of the hidden shape, fillet radius, flag inset */
+  --r: calc(var(--cell) * 0.24);
+  --fr: calc(var(--cell) * 0.16);
+  --fi: calc(var(--cell) * 0.1);
   position: absolute;
   top: 0;
   left: 0;
   display: grid;
   grid-template-columns: repeat(var(--cols), var(--cell));
   grid-auto-rows: var(--cell);
-  gap: calc(var(--cell) * 0.1);
   transform-origin: 0 0;
   will-change: transform;
   contain: layout style;
@@ -33,250 +35,257 @@
   animation: shake 0.45s var(--out);
 }
 
-/* ---- cells ---------------------------------------------------------------- */
+/* ---- cells --------------------------------------------------------------------- */
 
 .c {
   position: relative;
   display: grid;
   place-items: center;
-  border-radius: calc(var(--cell) * 0.24);
-  font-size: calc(var(--cell) * 0.54);
-  font-weight: 720;
+  font-size: calc(var(--cell) * 0.46);
+  font-weight: 400;
   line-height: 1;
+  color: var(--num);
   font-variant-numeric: tabular-nums;
-  transition:
-    transform 0.12s var(--out),
-    background-color 0.15s ease;
 }
 
+/* The hidden area: one solid shape. Sides that touch another hidden cell lose their rounding. */
 .c.h {
-  background: linear-gradient(to bottom, var(--tile-hi), var(--tile));
-  box-shadow: inset 0 calc(var(--cell) * -0.06) 0 var(--tile-edge);
+  background: var(--accent);
+  border-radius: var(--r);
+  /* hairline overlap so neighbouring cells never show a seam at fractional zoom */
+  box-shadow: 0 0 0 0.5px var(--accent);
+  transition: filter 0.15s ease;
 }
 
-.c.h.hv {
-  background: var(--tile-hover);
+.c.h.su { border-top-left-radius: 0; border-top-right-radius: 0; }
+.c.h.sd { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.c.h.sl { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.c.h.sr { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+
+.c.h.hv { filter: brightness(1.07); }
+.c.h.p { filter: brightness(0.9); }
+.c.h.pv { filter: brightness(0.82); }
+
+.c.q::before {
+  content: '?';
+  color: var(--bg);
+  font-weight: 500;
 }
 
+/* Open ground: inner-corner fillets of the hidden shape + faint dashed grid lines. */
 .c.o {
-  background: var(--open);
+  --tl: transparent;
+  --tr: transparent;
+  --bl: transparent;
+  --br: transparent;
+  --gx: transparent;
+  --gy: transparent;
+  background:
+    radial-gradient(circle at 100% 100%, transparent calc(var(--fr) - 0.5px), var(--tl) var(--fr)) 0 0 / var(--fr) var(--fr) no-repeat,
+    radial-gradient(circle at 0 100%, transparent calc(var(--fr) - 0.5px), var(--tr) var(--fr)) 100% 0 / var(--fr) var(--fr) no-repeat,
+    radial-gradient(circle at 100% 0, transparent calc(var(--fr) - 0.5px), var(--bl) var(--fr)) 0 100% / var(--fr) var(--fr) no-repeat,
+    radial-gradient(circle at 0 0, transparent calc(var(--fr) - 0.5px), var(--br) var(--fr)) 100% 100% / var(--fr) var(--fr) no-repeat,
+    linear-gradient(var(--gx), var(--gx)) 100% 50% / 1px 52% no-repeat,
+    linear-gradient(var(--gy), var(--gy)) 50% 100% / 52% 1px no-repeat;
 }
 
-.c.p {
-  transform: scale(0.88);
+.c.o.ftl { --tl: var(--accent); }
+.c.o.ftr { --tr: var(--accent); }
+.c.o.fbl { --bl: var(--accent); }
+.c.o.fbr { --br: var(--accent); }
+.c.o.gr { --gx: var(--grid); }
+.c.o.gd { --gy: var(--grid); }
+
+/* Flags: grey rounded squares. Neighbouring flags join through bridges across the inset,
+   drawn as shifted shadow copies of the square that overlap 1px into the neighbour (no seams),
+   so straight runs read as pills and L-shapes keep a clean inner corner. */
+.c.f {
+  --bu: transparent;
+  --bd: transparent;
+  --bl: transparent;
+  --br: transparent;
+  --rtl: var(--r);
+  --rtr: var(--r);
+  --rbl: var(--r);
+  --rbr: var(--r);
+  --reach: calc(var(--fi) + 1px);
 }
 
-.c.h.pv {
-  background: var(--open);
-  box-shadow: none;
-  transform: scale(0.92);
-}
+.c.f.su { --bu: var(--flag-bg); --rtl: 0px; --rtr: 0px; }
+.c.f.sd { --bd: var(--flag-bg); --rbl: 0px; --rbr: 0px; }
+.c.f.sl { --bl: var(--flag-bg); --rtl: 0px; --rbl: 0px; }
+.c.f.sr { --br: var(--flag-bg); --rtr: 0px; --rbr: 0px; }
 
-.n1 { color: var(--n1); }
-.n2 { color: var(--n2); }
-.n3 { color: var(--n3); }
-.n4 { color: var(--n4); }
-.n5 { color: var(--n5); }
-.n6 { color: var(--n6); }
-.n7 { color: var(--n7); }
-.n8 { color: var(--n8); }
-
-/* Icons are SVG masks so they take the theme colour. */
-.c.f::before,
-.c.m::before {
+.c.f::after {
   content: '';
   position: absolute;
+  inset: var(--fi);
+  border-radius: var(--rtl) var(--rtr) var(--rbr) var(--rbl);
+  background: var(--flag-bg);
+  box-shadow:
+    0 calc(-1 * var(--reach)) 0 0 var(--bu),
+    0 var(--reach) 0 0 var(--bd),
+    calc(-1 * var(--reach)) 0 0 0 var(--bl),
+    var(--reach) 0 0 0 var(--br);
+}
+
+/* Icons are SVG masks so they follow the theme. */
+.c.f::before,
+.c.m::before,
+.c.wf::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
   inset: 0;
   margin: auto;
-  width: 56%;
-  height: 56%;
+  width: 44%;
+  height: 44%;
   -webkit-mask: var(--icon) center / contain no-repeat;
   mask: var(--icon) center / contain no-repeat;
 }
 
 .c.f::before {
   --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 2.5a1.5 1.5 0 0 1 1.5 1.5v.5h11.2a1 1 0 0 1 .86 1.5L16.4 9.5l2.16 3.5a1 1 0 0 1-.86 1.5H6.5V20a1.5 1.5 0 0 1-3 0V4A1.5 1.5 0 0 1 5 2.5z'/%3E%3C/svg%3E");
-  background: var(--flag);
-  transform-origin: 30% 85%;
+  background: var(--flag-fg);
 }
 
-.c.m::before {
-  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4M5.3 5.3l2.8 2.8M15.9 15.9l2.8 2.8M5.3 18.7l2.8-2.8M15.9 8.1l2.8-2.8'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='6.2'/%3E%3C/svg%3E");
-  background: var(--mine);
-  width: 62%;
-  height: 62%;
-}
-
-.c.q::before {
-  content: '?';
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.c.x {
-  background: var(--danger);
-}
-
-.c.x::before {
-  background: #fff;
-}
-
-/* Wrong flag: the flag fades and gets a slash. */
 .c.wf::before {
-  opacity: 0.35;
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 5l14 14M19 5L5 19' stroke='black' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E");
 }
 
 .c.wf::after {
+  opacity: 0.55;
+}
+
+.c.m::before {
+  --icon: var(--mine-icon);
+  width: 58%;
+  height: 58%;
+}
+
+/* A mine still inside the shape is cut out of it; the one that went off sits on open ground. */
+.c.h.m::before {
+  background: var(--bg);
+}
+
+.c.o.m::before {
+  background: var(--accent);
+}
+
+.c.x::after {
   content: '';
   position: absolute;
-  inset: 18%;
-  background:
-    linear-gradient(45deg, transparent 45%, var(--danger) 45%, var(--danger) 55%, transparent 55%),
-    linear-gradient(-45deg, transparent 45%, var(--danger) 45%, var(--danger) 55%, transparent 55%);
+  inset: 4%;
+  border-radius: 50%;
+  border: max(1.5px, calc(var(--cell) * 0.06)) solid var(--accent);
+  animation: boom 0.9s var(--out) both;
 }
 
 /* Long-press ring */
 .c.lp::after {
   content: '';
   position: absolute;
-  inset: -14%;
+  z-index: 2;
+  inset: -16%;
   border-radius: 50%;
-  border: max(2px, calc(var(--cell) * 0.07)) solid var(--accent);
+  border: max(2px, calc(var(--cell) * 0.07)) solid var(--text);
   animation: ring var(--lp) linear forwards;
   pointer-events: none;
 }
 
-/* ---- animations ------------------------------------------------------------ */
+/* ---- animations ---------------------------------------------------------------- */
 
-.c.ar {
-  animation: reveal 0.38s var(--out) both;
+/* Revealed cells dissolve out of the shape as shrinking rounded squares. */
+.c.o.ar {
+  animation: num-in 0.46s var(--out) both;
 }
 
-.c.af::before {
-  animation: flag-in 0.42s var(--spring) both;
+.c.o.ar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  animation: dissolve 0.46s cubic-bezier(0.5, 0, 0.3, 1) both;
   animation-delay: inherit;
 }
 
-.c.au {
-  animation: settle 0.28s var(--spring);
+.c.f.af::after,
+.c.f.af::before {
+  animation: pop 0.4s var(--spring) both;
+  animation-delay: inherit;
 }
 
-.c.am {
-  animation: mine-in 0.42s var(--spring) both;
+.c.h.au {
+  animation: fade-in 0.3s ease both;
 }
 
-.c.am::before {
+.c.h.m.am::before,
+.c.wf.am::before {
   animation: pop 0.42s var(--spring) both;
   animation-delay: inherit;
 }
 
-.c.x.am {
-  animation: boom 0.6s var(--out) both;
-}
-
-.c.x.am::before {
-  animation: pop 0.5s var(--spring) both;
-}
-
-.c.aw {
+.c.o.aw {
   animation: wave 0.6s var(--out) both;
 }
 
-@keyframes reveal {
-  0%,
-  25% {
-    background-color: var(--tile);
-    color: transparent;
-    transform: scale(1);
-  }
-  55% {
-    transform: scale(0.8);
-    color: transparent;
-  }
-  82% {
-    transform: scale(1.04);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes flag-in {
+@keyframes dissolve {
   0% {
-    transform: scale(0) rotate(-30deg);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.18) rotate(6deg);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1) rotate(0);
-  }
-}
-
-@keyframes settle {
-  0% {
-    transform: scale(0.84);
-  }
-  100% {
     transform: scale(1);
-  }
-}
-
-@keyframes mine-in {
-  0% {
-    background-color: var(--tile);
-    transform: scale(1);
+    border-radius: 0;
   }
   45% {
-    transform: scale(0.78);
+    transform: scale(0.7);
+    border-radius: 24%;
   }
   100% {
-    transform: scale(1);
+    transform: scale(0);
+    border-radius: 50%;
+  }
+}
+
+@keyframes num-in {
+  0%,
+  40% {
+    color: transparent;
   }
 }
 
 @keyframes pop {
-  0%,
-  30% {
+  0% {
     transform: scale(0);
     opacity: 0;
   }
-  70% {
-    transform: scale(1.2);
+  65% {
+    transform: scale(1.12);
     opacity: 1;
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0.3;
+  }
+}
+
+@keyframes wave {
+  40% {
+    transform: translateY(calc(var(--cell) * -0.2));
+    color: var(--accent);
   }
 }
 
 @keyframes boom {
   0% {
-    background-color: var(--tile);
-    transform: scale(1);
-    box-shadow: 0 0 0 0 var(--danger);
-  }
-  30% {
-    transform: scale(1.25);
+    transform: scale(0.3);
+    opacity: 1;
   }
   100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 calc(var(--cell) * 0.9) transparent;
-  }
-}
-
-@keyframes wave {
-  0% {
-    transform: translateY(0) scale(1);
-  }
-  40% {
-    transform: translateY(calc(var(--cell) * -0.18)) scale(1.06);
-    background-color: var(--win);
-  }
-  100% {
-    transform: translateY(0) scale(1);
+    transform: scale(1.6);
+    opacity: 0;
   }
 }
 
@@ -290,7 +299,7 @@
   }
   100% {
     transform: scale(1);
-    opacity: 1;
+    opacity: 0.9;
   }
 }
 

@@ -1,3 +1,28 @@
+/* Themes set only --bg and --accent (see ui/themes.ts); every other colour is mixed from them. */
+:root {
+  --bg: #f4f6f7;
+  --accent: #6a9fc0;
+  --text: #555759;
+  --muted: color-mix(in srgb, var(--text) 60%, var(--bg));
+  --num: color-mix(in srgb, var(--text) 88%, var(--bg));
+  --grid: color-mix(in srgb, var(--text) 13%, var(--bg));
+  --line: color-mix(in srgb, var(--text) 30%, var(--bg));
+  --flag-bg: color-mix(in srgb, var(--text) 38%, var(--bg));
+  --flag-fg: var(--bg);
+  --surface: color-mix(in srgb, var(--text) 4%, var(--bg));
+  --danger: #d9534f;
+
+  --out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --spring: cubic-bezier(0.25, 1.35, 0.4, 1);
+}
+
+[data-tone='dark'] {
+  --text: #e6e6e6;
+  --grid: color-mix(in srgb, var(--text) 11%, var(--bg));
+  --flag-bg: color-mix(in srgb, var(--text) 40%, var(--bg));
+  --surface: color-mix(in srgb, var(--text) 6%, var(--bg));
+}
+
 *,
 *::before,
 *::after {
@@ -15,8 +40,8 @@ body {
 body {
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  font-feature-settings: 'cv11', 'ss01';
+  font-family: 'Rubik Variable', Rubik, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 300;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
@@ -46,19 +71,12 @@ svg {
   flex: none;
 }
 
-/* Easing tokens */
-:root {
-  --spring: cubic-bezier(0.22, 1.25, 0.36, 1);
-  --out: cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
 .theme-fade,
 .theme-fade * {
   transition:
-    background-color 0.35s ease,
-    color 0.35s ease,
-    border-color 0.35s ease,
-    fill 0.35s ease !important;
+    background-color 0.4s ease,
+    color 0.4s ease,
+    border-color 0.4s ease !important;
 }
 
 .reduced *,

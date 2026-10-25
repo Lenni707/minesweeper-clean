@@ -8,10 +8,10 @@ export interface Preset {
 }
 
 export const PRESETS: Preset[] = [
-  { id: 'beginner', name: 'Beginner', cols: 9, rows: 9, mines: 10 },
-  { id: 'intermediate', name: 'Intermediate', cols: 16, rows: 16, mines: 40 },
-  { id: 'expert', name: 'Expert', cols: 16, rows: 30, mines: 99 },
-  { id: 'master', name: 'Master', cols: 24, rows: 30, mines: 150 },
+  { id: 'beginner', name: 'Easy', cols: 9, rows: 9, mines: 10 },
+  { id: 'intermediate', name: 'Medium', cols: 16, rows: 16, mines: 40 },
+  { id: 'expert', name: 'Hard', cols: 16, rows: 30, mines: 99 },
+  { id: 'master', name: 'Expert', cols: 24, rows: 30, mines: 150 },
   { id: 'insane', name: 'Insane', cols: 30, rows: 50, mines: 300 },
 ];
 

@@ -1,5 +1,10 @@
 // Renders a Board into a DOM grid and choreographs its animations.
-// Each cell's class string is cached, so a sync only touches the cells that changed.
+//
+// Look (after "Minesweeper – The Clean One"): every unrevealed cell is painted in the accent colour
+// with no gaps, so the hidden area reads as one solid shape. Only its outer corners are rounded,
+// plus small fillets in the inner corners. Revealed cells are just the background with a thin number.
+// Flags are grey rounded squares that merge with neighbouring flags.
+// Each cell's class string is cached, so a sync only touches the DOM where something changed.
 
 import { Board, FLAGGED, HIDDEN, QUESTION, REVEALED, type Opened } from '../engine/board';
 
@@ -12,6 +17,11 @@ const ANIM_CLASS = ['', ' ar', ' af', ' am', ' aw', ' au'];
 
 /** Longest stagger for any one wave (ms), so huge openings don't drag on. */
 const MAX_WAVE = 650;
+
+/** Which shape a cell belongs to: 0 = open ground, 1 = the hidden area, 2 = flags. */
+const OPEN = 0;
+const AREA = 1;
+const FLAGS = 2;
 
 export class BoardView {
   private board!: Board;
@@ -54,21 +64,58 @@ export class BoardView {
     this.syncAll();
   }
 
+  private group(i: number): number {
+    const s = this.board.state[i];
+    if (s === FLAGGED) return FLAGS;
+    if (s === REVEALED) return OPEN;
+    // After a loss, mines stay part of the shape (they show as cut-outs) but everything else opens up.
+    return AREA;
+  }
+
+  /** Same-group neighbours as side classes, and inner-corner fillets for open cells. */
+  private shape(i: number, g: number): string {
+    const b = this.board;
+    const r = (i / b.cols) | 0;
+    const c = i % b.cols;
+    const up = r > 0 ? this.group(i - b.cols) : -1;
+    const dn = r < b.rows - 1 ? this.group(i + b.cols) : -1;
+    const lf = c > 0 ? this.group(i - 1) : -1;
+    const rt = c < b.cols - 1 ? this.group(i + 1) : -1;
+    let s = '';
+    if (g !== OPEN) {
+      if (up === g) s += ' su';
+      if (rt === g) s += ' sr';
+      if (dn === g) s += ' sd';
+      if (lf === g) s += ' sl';
+      return s;
+    }
+    // Faint grid dashes only between two open cells.
+    if (rt === OPEN) s += ' gr';
+    if (dn === OPEN) s += ' gd';
+    // A fillet sits where two hidden sides meet around an open corner and the diagonal is hidden too.
+    const diag = (dr: number, dc: number) => this.group(i + dr * b.cols + dc) === AREA;
+    if (up === AREA && lf === AREA && diag(-1, -1)) s += ' ftl';
+    if (up === AREA && rt === AREA && diag(-1, 1)) s += ' ftr';
+    if (dn === AREA && lf === AREA && diag(1, -1)) s += ' fbl';
+    if (dn === AREA && rt === AREA && diag(1, 1)) s += ' fbr';
+    return s;
+  }
+
   private classFor(i: number): string {
     const b = this.board;
     const s = b.state[i];
+    const g = this.group(i);
     let c: string;
     if (s === REVEALED) {
       c = b.mine[i] ? 'c o m' : `c o n${b.adj[i]}`;
-    } else if (this.lost && b.mine[i] && s !== FLAGGED) {
-      c = 'c o m';
     } else if (s === FLAGGED) {
-      c = this.lost && !b.mine[i] ? 'c h f wf' : 'c h f';
-    } else if (s === QUESTION) {
-      c = 'c h q';
+      c = this.lost && !b.mine[i] ? 'c f wf' : 'c f';
     } else {
       c = 'c h';
+      if (s === QUESTION) c += ' q';
+      if (this.lost && b.mine[i]) c += ' m';
     }
+    c += this.shape(i, g);
     if (this.lost && i === b.exploded) c += ' x';
     c += ANIM_CLASS[this.anim[i]];
     if (i === this.pressed) c += this.longPress ? ' p lp' : ' p';
@@ -95,34 +142,41 @@ export class BoardView {
     }
   }
 
+  /** Re-renders every cell. Shapes depend on neighbours, so moves call this rather than syncing single cells. */
   syncAll(): void {
     for (let i = 0; i < this.board.size; i++) this.sync(i);
+  }
+
+  private syncAround(i: number): void {
+    const b = this.board;
+    this.sync(i);
+    for (const n of b.neighbors(i)) this.sync(n);
   }
 
   private delay(i: number, ms: number): void {
     this.cells[i].style.animationDelay = ms > 0 ? `${Math.round(ms * this.speed)}ms` : '';
   }
 
-  /** Staggers newly opened cells by their flood-fill depth. */
+  /** Newly opened cells dissolve out of the shape, staggered by flood-fill depth. */
   reveal(opened: Opened[]): void {
     if (opened.length === 0) return;
     let maxDepth = 0;
     for (const o of opened) maxDepth = Math.max(maxDepth, o.depth);
-    const step = maxDepth > 0 ? Math.min(22, MAX_WAVE / maxDepth) : 0;
+    const step = maxDepth > 0 ? Math.min(24, MAX_WAVE / maxDepth) : 0;
     for (const o of opened) {
       this.anim[o.i] = A_REVEAL;
       this.delay(o.i, o.depth * step);
-      this.sync(o.i);
     }
+    this.syncAll();
   }
 
   flag(i: number): void {
-    this.anim[i] = this.board.state[i] === HIDDEN ? A_UNFLAG : A_FLAG;
+    this.anim[i] = this.board.state[i] === FLAGGED ? A_FLAG : A_UNFLAG;
     this.delay(i, 0);
-    this.sync(i);
+    this.syncAround(i);
   }
 
-  /** Mines appear one ring at a time, rippling out from the one that went off. */
+  /** Mines punch out of the shape one ring at a time, rippling out from the one that went off. */
   lose(): number {
     const b = this.board;
     this.lost = true;
@@ -132,34 +186,29 @@ export class BoardView {
     this.el.classList.add('shake');
     const er = (b.exploded / b.cols) | 0;
     const ec = b.exploded % b.cols;
+    const dist = (i: number) => Math.hypot(((i / b.cols) | 0) - er, (i % b.cols) - ec);
     let far = 1;
-    for (let i = 0; i < b.size; i++) {
-      if (b.mine[i] || b.state[i] === FLAGGED) {
-        const r = (i / b.cols) | 0;
-        far = Math.max(far, Math.hypot(r - er, (i % b.cols) - ec));
-      }
-    }
+    for (let i = 0; i < b.size; i++) if (b.mine[i] || b.state[i] === FLAGGED) far = Math.max(far, dist(i));
     const step = Math.min(45, 900 / far);
     for (let i = 0; i < b.size; i++) {
       if (i === b.exploded) {
         this.anim[i] = A_MINE;
         this.delay(i, 0);
       } else if ((b.mine[i] && b.state[i] !== FLAGGED) || (b.state[i] === FLAGGED && !b.mine[i])) {
-        const r = (i / b.cols) | 0;
         this.anim[i] = A_MINE;
-        this.delay(i, 160 + Math.hypot(r - er, (i % b.cols) - ec) * step);
+        this.delay(i, 160 + dist(i) * step);
       }
     }
     this.syncAll();
     return (160 + far * step) * this.speed;
   }
 
-  /** A diagonal wave across the board; auto-placed flags pop in with it. */
+  /** The last of the shape turns into flags, then a wave rolls across the numbers. */
   win(): number {
     const b = this.board;
     this.el.classList.add('won');
     const diag = b.rows + b.cols - 2 || 1;
-    const step = Math.min(28, 900 / diag);
+    const step = Math.min(26, 900 / diag);
     for (let i = 0; i < b.size; i++) {
       const r = (i / b.cols) | 0;
       const c = i % b.cols;
@@ -177,8 +226,8 @@ export class BoardView {
     el.animate(
       [
         { transform: 'translateX(0)' },
-        { transform: 'translateX(-8%)' },
-        { transform: 'translateX(6%)' },
+        { transform: 'translateX(-10%)' },
+        { transform: 'translateX(8%)' },
         { transform: 'translateX(0)' },
       ],
       { duration: 220, easing: 'ease-out' },

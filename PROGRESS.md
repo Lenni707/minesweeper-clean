@@ -8,6 +8,9 @@ minimal, sleek, nicely animated. 5 presets + custom size. Mobile-first PWA (add 
 equally clean on desktop. No backend; everything in localStorage.
 
 ## Rules
+- Look = "Minesweeper – The Clean One" (Dustland Design, Android). Reference: Play Store screenshots. The hidden area is ONE solid accent shape
+  (gap 0, only outer corners rounded, inner-corner fillets on open cells). Numbers are thin and single-colour, and dashed grid lines run between open cells.
+  Flags are grey rounded squares that merge with neighbouring flags. Rubik font, italic outlined pills, a `‹ Easy ›` picker, round ON/OFF buttons.
 - Vite + TypeScript, **vanilla DOM** (no framework). Animations are CSS transforms/opacity only.
 - `src/engine/` is pure logic with no DOM, and is covered by Vitest.
 - Controls: tap reveals, long-press flags (adjustable delay). There's also an on-screen reveal/flag toggle (flag mode swaps them).
@@ -19,14 +22,15 @@ equally clean on desktop. No backend; everything in localStorage.
 ## Architecture
 ```
 src/engine/board.ts      game state, lazy mine placement (first tap safe), BFS reveal w/ depth, chord, serialize
-src/engine/presets.ts    Beginner 9x9/10, Intermediate 16x16/40, Expert 16x30/99, Master 24x30/150, Insane 30x50/300
+src/engine/presets.ts    Easy 9x9/10, Medium 16x16/40, Hard 16x30/99, Expert 24x30/150, Insane 30x50/300 (ids stay beginner/intermediate/expert/master/insane for storage)
 src/ui/boardView.ts      DOM grid, cached class strings (only changed cells touched), animation choreography
 src/ui/icons.ts          inline stroke SVG icons
-src/styles/              theme.css (6 themes as CSS vars), board.css (cells + keyframes), ui.css (HUD, dock, sheets, desktop @media)
+src/styles/              base.css (tokens mixed from --bg/--accent), board.css (shape, flags, keyframes), ui.css (screens)
 src/ui/gestures.ts       pointer events: tap / long-press / pan / pinch / mouse buttons
 src/ui/viewport.ts       transform zoom+pan, fit-to-screen
-src/ui/hud.ts            counter, timer, restart, mode toggle
-src/ui/sheets.ts         new game / custom / settings / stats (bottom sheet on mobile, modal on desktop)
+src/ui/hud.ts            game bar (back · mines/time · fit · palette), flag FAB, palette dot bar, formatTime ("3M 41S")
+src/ui/pages.ts          home (logo, ‹ level › picker, custom steppers, New Game), settings, high scores, about, end card
+src/ui/themes.ts         9 themes = background + accent (colours sampled from the Play Store screenshots)
 src/state/storage.ts     saves per difficulty, stats, best times, settings
 ```
 Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compose up --build` → :8080
@@ -54,3 +58,9 @@ Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compo
   - Stats: one bucket per preset plus one `custom` bucket (custom best times store their size).
   - Dev-only hook `window.__ms` ({board, view, vp}) for scripted screenshot tests (puppeteer-core in a scratch dir).
   - Only the Latin Inter subsets are precached (~230 KiB in total).
+- 2026-10-25: Redesign to match the original app (the user asked for an exact copy of its look). The colours were sampled from the store screenshots.
+  - Screens: home → game (history.pushState, so the phone's back gesture works), settings, high scores, about. End card ("Neat!" with top 5) → "Start new game" + picker under the board.
+  - Shape rendering: `BoardView.shape()` adds side classes (su/sr/sd/sl) for same-group neighbours, `ftl/ftr/fbl/fbr` fillets and `gr/gd` grid dashes. Moves call syncAll, because shapes depend on neighbours.
+  - Flag bridges are box-shadow copies of the inset square offset by fi+1px, so merged flags have no seams and L-joins stay clean.
+  - Reveal = an accent ::after square shrinking to a circle (the "dissolve"). On a loss, mines are cut out of the shape (bg-coloured mask). The mine mask is generated from `minePath()` in icons.ts.
+  - The preset names (Easy…Insane) and sizes beyond Easy/Medium/Hard are my guesses; the store listing only says "5 levels".
