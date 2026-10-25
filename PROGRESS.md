@@ -70,3 +70,7 @@ Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compo
   - Flag placed after a finished long-press morph gets `af-soft` (just settle + icon). A tap-placed flag morphs accent → grey rounded square (`flag-morph`). Unflag swells the grey back into the shape (fill `backwards`, so hover still works afterwards).
   - Fillets now also apply to flag cells (vars renamed --ftl/--ftr/--fbl/--fbr to avoid clashing with the flag bridges' --bl/--br).
   - Removed the fit/fullscreen button (`Z` key still refits). The palette is now a 5-wide popover grid.
+- 2026-10-25: Reveal timing fix (user: "revealing too slow", "stuff triggers before the animation can play").
+  - Reveal is now 0.42s with 20ms per ring (max 480ms wave). Win wave 0.7s.
+  - `BoardView.shown` is the visual open state and trails the engine. Cells join the open group (corners, fillets, grid dashes) from a rAF `pending` queue at about 30% of their own dissolve, so the shape no longer snaps open before the animation.
+  - `win()` starts the wave only after `revealEnd`. `win()` and `lose()` return the full animation length, and the end card appears at animMs + 300 with no cap.

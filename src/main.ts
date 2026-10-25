@@ -325,7 +325,7 @@ function finish(won: boolean, animMs: number): void {
   const k = key;
   endTimer = window.setTimeout(() => {
     game.appendChild(endCard({ won, ms, rank, key: k, stats, done: () => game.classList.add('over') }));
-  }, Math.min(1600, animMs + (won ? 350 : 500)));
+  }, animMs + 300);
 }
 
 // ---- clock, lifecycle, keyboard ----------------------------------------------------------------

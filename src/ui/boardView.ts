@@ -18,7 +18,12 @@ const A_FLAG_SOFT = 6;
 const ANIM_CLASS = ['', ' ar', ' af', ' am', ' aw', ' au', ' af af-soft'];
 
 /** Longest stagger for any one wave (ms), so huge openings don't drag on. */
-const MAX_WAVE = 900;
+const MAX_WAVE = 480;
+/** Per-ring stagger cap and the dissolve duration (must match `.c.o.ar` in board.css). */
+const STEP = 20;
+const REVEAL_MS = 420;
+/** Win wave duration (must match `.c.o.aw`). */
+const WAVE_MS = 700;
 
 /** Which shape a cell belongs to: 0 = open ground, 1 = the hidden area, 2 = flags. */
 const OPEN = 0;
@@ -31,6 +36,16 @@ export class BoardView {
   private cache: string[] = [];
   private text: string[] = [];
   private anim = new Uint8Array(0);
+  /**
+   * Cells that look open. This trails the board state while the dissolve plays, so the shape's corners
+   * and fillets around a cell only change once its dissolve is actually under way.
+   */
+  private shown = new Uint8Array(0);
+  private pending: { t: number; i: number }[] = [];
+  private pendingFrame = 0;
+  /** When the current reveal animation finishes (performance.now() time). */
+  private revealEnd = 0;
+  private waveTimer = 0;
   private lost = false;
   private pressed = -1;
   private pressKind: '' | 'flag' | 'open' = '';
@@ -52,6 +67,12 @@ export class BoardView {
     this.pressed = this.hovered = -1;
     this.preview.clear();
     this.anim = new Uint8Array(board.size);
+    this.shown = new Uint8Array(board.size);
+    for (let i = 0; i < board.size; i++) this.shown[i] = board.state[i] === REVEALED ? 1 : 0;
+    this.pending = [];
+    cancelAnimationFrame(this.pendingFrame);
+    clearTimeout(this.waveTimer);
+    this.revealEnd = 0;
     this.cache = new Array(board.size).fill('');
     this.text = new Array(board.size).fill('');
     this.el.style.setProperty('--cols', String(board.cols));
@@ -74,7 +95,7 @@ export class BoardView {
   private group(i: number): number {
     const s = this.board.state[i];
     if (s === FLAGGED) return FLAGS;
-    if (s === REVEALED) return OPEN;
+    if (s === REVEALED) return this.shown[i] ? OPEN : AREA;
     // After a loss, mines stay part of the shape (they show as cut-outs) but everything else opens up.
     return AREA;
   }
@@ -112,7 +133,7 @@ export class BoardView {
   private classFor(i: number): string {
     const b = this.board;
     const s = b.state[i];
-    const g = this.group(i);
+    const g = s === REVEALED ? OPEN : this.group(i);
     let c: string;
     if (s === REVEALED) {
       c = b.mine[i] ? 'c o m' : `c o n${b.adj[i]}`;
@@ -175,13 +196,36 @@ export class BoardView {
     if (opened.length === 0) return;
     let maxDepth = 0;
     for (const o of opened) maxDepth = Math.max(maxDepth, o.depth);
-    const step = maxDepth > 0 ? Math.min(34, MAX_WAVE / maxDepth) : 0;
+    const step = (maxDepth > 0 ? Math.min(STEP, MAX_WAVE / maxDepth) : 0) * this.speed;
+    const now = performance.now();
     for (const o of opened) {
       this.anim[o.i] = A_REVEAL;
       this.delay(o.i, o.depth * step);
+      // The neighbours' corners follow once this cell has visibly started to shrink.
+      this.pending.push({ t: now + o.depth * step + REVEAL_MS * 0.3 * this.speed, i: o.i });
+      this.sync(o.i);
     }
-    this.syncAll();
+    this.revealEnd = Math.max(this.revealEnd, now + (maxDepth * step + REVEAL_MS) * this.speed);
+    this.pending.sort((a, b) => a.t - b.t);
+    this.flushPending();
   }
+
+  /** Marks cells as visibly open when their time comes, re-shaping them and their neighbours. */
+  private flushPending = (): void => {
+    cancelAnimationFrame(this.pendingFrame);
+    const now = performance.now();
+    let k = 0;
+    const touched = new Set<number>();
+    while (k < this.pending.length && this.pending[k].t <= now) {
+      const i = this.pending[k++].i;
+      this.shown[i] = 1;
+      touched.add(i);
+      for (const n of this.board.neighbors(i)) touched.add(n);
+    }
+    if (k > 0) this.pending.splice(0, k);
+    for (const i of touched) this.sync(i);
+    if (this.pending.length > 0) this.pendingFrame = requestAnimationFrame(this.flushPending);
+  };
 
   flag(i: number): void {
     const flagged = this.board.state[i] === FLAGGED;
@@ -215,23 +259,32 @@ export class BoardView {
       }
     }
     this.syncAll();
-    return (160 + far * step) * this.speed;
+    return Math.max(this.revealEnd - performance.now(), (160 + far * step + 550) * this.speed);
   }
 
-  /** The last of the shape turns into flags, then a wave rolls across the numbers. */
+  /**
+   * The last of the shape turns into flags, then a wave rolls across the numbers. It starts only after
+   * the final reveal has finished. Returns ms until everything has played out.
+   */
   win(): number {
     const b = this.board;
-    this.el.classList.add('won');
+    const wait = Math.max(0, this.revealEnd - performance.now());
     const diag = b.rows + b.cols - 2 || 1;
-    const step = Math.min(34, 1100 / diag);
-    for (let i = 0; i < b.size; i++) {
-      const r = (i / b.cols) | 0;
-      const c = i % b.cols;
-      this.anim[i] = b.state[i] === FLAGGED && this.anim[i] !== A_FLAG ? A_FLAG : A_WIN;
-      this.delay(i, 120 + (r + c) * step);
-    }
-    this.syncAll();
-    return (120 + diag * step) * this.speed;
+    const step = Math.min(28, 900 / diag);
+    clearTimeout(this.waveTimer);
+    this.waveTimer = window.setTimeout(() => {
+      this.el.classList.add('won');
+      for (let i = 0; i < b.size; i++) {
+        const r = (i / b.cols) | 0;
+        const c = i % b.cols;
+        this.anim[i] = b.state[i] === FLAGGED && this.anim[i] !== A_FLAG ? A_FLAG : A_WIN;
+        this.delay(i, (r + c) * step);
+      }
+      this.shown.fill(1);
+      this.pending = [];
+      this.syncAll();
+    }, wait);
+    return wait + (diag * step + WAVE_MS) * this.speed;
   }
 
   /** A small shake for a number that can't be chorded yet. */
