@@ -218,11 +218,7 @@
   height: 58%;
 }
 
-/* A mine still inside the shape is cut out of it; the one that went off sits on open ground. */
-.c.h.m::before {
-  background: var(--bg);
-}
-
+/* After a loss the shape has dissolved: mines sit on open ground in the accent colour. */
 .c.o.m::before {
   background: var(--accent);
 }
@@ -280,7 +276,7 @@
   animation: unflag 0.5s var(--ease) backwards;
 }
 
-.c.h.m.am::before,
+.c.o.m.am::before,
 .c.wf.am::before {
   animation: icon-in 0.55s var(--ease) both;
   animation-delay: inherit;

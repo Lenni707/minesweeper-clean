@@ -7,21 +7,33 @@ const wrap = (body: string, extra = '') =>
 export const mineLogo = `<svg viewBox="0 0 100 100" aria-hidden="true"><path fill="currentColor" d="${minePath()}"/></svg>`;
 
 function minePath(): string {
-  // Eight studs around a disc, as rectangles rotated about the centre.
+  // As in the original's icon: a disc with four broad studs on the axes, four narrower ones on the
+  // diagonals (all slightly rounded) and a square hole in the middle.
   // Disc and studs wind clockwise; the hole winds the other way, so nonzero fill punches it out.
-  let d = 'M50 14a36 36 0 1 1 -0.001 0z';
-  for (let k = 0; k < 8; k++) {
-    const a = (k * Math.PI) / 4;
-    const pts = [
-      [-9.5, -45],
-      [9.5, -45],
-      [9.5, -30],
-      [-9.5, -30],
-    ].map(([x, y]) => [50 + x * Math.cos(a) - y * Math.sin(a), 50 + x * Math.sin(a) + y * Math.cos(a)]);
-    d += `M${pts.map(([x, y]) => `${x.toFixed(2)} ${y.toFixed(2)}`).join('L')}z`;
-  }
-  d += 'M50 39L39 50L50 61L61 50z';
+  let d = 'M50 15a35 35 0 1 1 -0.001 0z';
+  for (let k = 0; k < 8; k++) d += k % 2 ? stud(k * 45, 5.8, 41.5) : stud(k * 45, 8.8, 45);
+  const h = 8.8;
+  const q = 1.6;
+  d +=
+    `M${50 - h + q} ${50 - h}A${q} ${q} 0 0 0 ${50 - h} ${50 - h + q}L${50 - h} ${50 + h - q}` +
+    `A${q} ${q} 0 0 0 ${50 - h + q} ${50 + h}L${50 + h - q} ${50 + h}A${q} ${q} 0 0 0 ${50 + h} ${50 + h - q}` +
+    `L${50 + h} ${50 - h + q}A${q} ${q} 0 0 0 ${50 + h - q} ${50 - h}z`;
   return d;
+}
+
+/** A stud of half-width `w` reaching out to radius `reach`, rotated `deg` clockwise from the top. */
+function stud(deg: number, w: number, reach: number): string {
+  const a = (deg * Math.PI) / 180;
+  const q = 1.8;
+  const at = (x: number, y: number) => {
+    const px = 50 + x * Math.cos(a) - y * Math.sin(a);
+    const py = 50 + x * Math.sin(a) + y * Math.cos(a);
+    return `${px.toFixed(2)} ${py.toFixed(2)}`;
+  };
+  const arc = (x: number, y: number) => `A${q} ${q} 0 0 1 ${at(x, y)}`;
+  const top = -reach;
+  const inner = -28;
+  return `M${at(-w + q, top)}L${at(w - q, top)}${arc(w, top + q)}L${at(w, inner)}L${at(-w, inner)}L${at(-w, top + q)}${arc(-w + q, top)}z`;
 }
 
 export const icons = {

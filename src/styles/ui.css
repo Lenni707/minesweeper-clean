@@ -118,9 +118,35 @@
   padding-left: 23px;
 }
 
+/* Once a game is over the original keeps only the final time, small and centred in the bar. */
+.bar[data-state='won'] .status,
+.bar[data-state='lost'] .status {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin: 0;
+  translate: -50% -50%;
+  animation: status-end 0.6s var(--ease) both;
+}
+
+.bar[data-state='won'] .status-mines,
+.bar[data-state='lost'] .status-mines {
+  display: none;
+}
+
 .bar[data-state='won'] .status-time,
 .bar[data-state='lost'] .status-time {
-  color: var(--accent);
+  padding: 0;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--text);
+}
+
+@keyframes status-end {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 
 .ticker {
@@ -143,7 +169,8 @@
   }
 }
 
-/* ---- palette: a rounded popover with a grid of theme dots (ring = background, dot = accent) ---- */
+/* ---- palette: as in the original, a pill of theme dots grows out of the button to the left,
+   over the top bar (ring = background, dot = accent). It scrolls sideways when the screen is narrow. */
 
 .palette {
   position: relative;
@@ -167,32 +194,45 @@
 
 .dots {
   position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  display: grid;
-  grid-template-columns: repeat(5, 40px);
-  gap: 10px;
-  padding: 16px;
-  border-radius: 24px;
+  z-index: 1;
+  top: 50%;
+  right: -4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: min(calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)), 760px);
+  height: 60px;
+  padding: 0 64px 0 12px;
+  margin-top: -30px;
+  overflow-x: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  border-radius: 30px;
   border: 1px solid var(--line);
   background: var(--bg);
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
-  transform-origin: calc(100% - 22px) -8px;
-  transform: scale(0.6);
+  clip-path: inset(0 0 0 calc(100% - 52px) round 30px);
   opacity: 0;
   pointer-events: none;
   transition:
-    transform 0.45s var(--ease),
-    opacity 0.3s var(--ease);
+    clip-path 0.5s var(--ease),
+    opacity 0.25s var(--ease) 0.15s;
+}
+
+.dots::-webkit-scrollbar {
+  display: none;
 }
 
 .palette.open .dots {
-  transform: none;
+  clip-path: inset(0 round 30px);
   opacity: 1;
   pointer-events: auto;
+  transition:
+    clip-path 0.5s var(--ease),
+    opacity 0.15s var(--ease);
 }
 
 .dot {
+  flex: none;
   display: grid;
   place-items: center;
   width: 40px;
@@ -236,7 +276,8 @@
 .palette.open .dot {
   opacity: 1;
   transform: none;
-  transition-delay: calc(var(--k) * 18ms + 60ms);
+  /* nearest the button first, following the pill as it grows */
+  transition-delay: calc((var(--n) - var(--k)) * 22ms + 40ms);
 }
 
 /* ---- flag toggle ---------------------------------------------------------------------- */

@@ -47,13 +47,13 @@ class Ticker {
   }
 }
 
-/** The palette button; tapping it slides out a row of theme dots (ring = background, dot = accent). */
+/** The palette button; tapping it grows a pill of theme dots out to the left (ring = background, dot = accent). */
 export function paletteButton(current: () => ThemeId, pick: (id: ThemeId) => void): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'palette';
   const dots = THEMES.map(
     (t, k) =>
-      `<button type="button" class="dot" data-theme-id="${t.id}" style="--ring:${t.bg};--fill:${t.accent};--k:${k}" aria-label="${t.id} theme"></button>`,
+      `<button type="button" class="dot" data-theme-id="${t.id}" style="--ring:${t.bg};--fill:${t.accent};--k:${k};--n:${THEMES.length}" aria-label="${t.id} theme"></button>`,
   ).join('');
   wrap.innerHTML = `<div class="dots">${dots}</div><button type="button" class="icon-btn palette-btn" aria-label="Themes">${icons.palette}</button>`;
   const mark = () =>
@@ -65,6 +65,10 @@ export function paletteButton(current: () => ThemeId, pick: (id: ThemeId) => voi
     wrap.classList.toggle('open', open);
     if (open) {
       mark();
+      // Bring the current theme into view (the row scrolls on narrow screens).
+      const row = wrap.querySelector<HTMLElement>('.dots')!;
+      const on = row.querySelector<HTMLElement>('.dot.on');
+      if (on) row.scrollLeft = Math.max(0, on.offsetLeft - row.clientWidth / 2 + on.offsetWidth / 2);
       setTimeout(() => document.addEventListener('pointerdown', close), 0);
     } else {
       document.removeEventListener('pointerdown', close);

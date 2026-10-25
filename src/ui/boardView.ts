@@ -24,6 +24,8 @@ const STEP = 20;
 const REVEAL_MS = 420;
 /** The game's opening tap gets a slower, showier ripple (dissolve length is set per cell via `--rd`). */
 const FIRST = { wave: 1000, step: 42, dur: 760 };
+/** Loss: the whole shape dissolves outward from the mine (lead-in, ms per cell of distance, cap, dissolve). */
+const LOSS = { lead: 260, step: 55, wave: 1300, dur: 620 };
 /** Win wave duration (must match `.c.o.aw`). */
 const WAVE_MS = 700;
 
@@ -70,7 +72,7 @@ export class BoardView {
     this.preview.clear();
     this.anim = new Uint8Array(board.size);
     this.shown = new Uint8Array(board.size);
-    for (let i = 0; i < board.size; i++) this.shown[i] = board.state[i] === REVEALED ? 1 : 0;
+    for (let i = 0; i < board.size; i++) this.shown[i] = this.looksOpen(i) ? 1 : 0;
     this.pending = [];
     cancelAnimationFrame(this.pendingFrame);
     clearTimeout(this.waveTimer);
@@ -94,12 +96,15 @@ export class BoardView {
     this.syncAll();
   }
 
-  private group(i: number): number {
+  /** Revealed cells, and after a loss every unflagged cell: the whole board opens up. */
+  private looksOpen(i: number): boolean {
     const s = this.board.state[i];
-    if (s === FLAGGED) return FLAGS;
-    if (s === REVEALED) return this.shown[i] ? OPEN : AREA;
-    // After a loss, mines stay part of the shape (they show as cut-outs) but everything else opens up.
-    return AREA;
+    return s === REVEALED || (this.lost && s !== FLAGGED);
+  }
+
+  private group(i: number): number {
+    if (this.board.state[i] === FLAGGED) return FLAGS;
+    return this.looksOpen(i) && this.shown[i] ? OPEN : AREA;
   }
 
   /** Same-group neighbours as side classes, and inner-corner fillets for open and flag cells. */
@@ -125,7 +130,7 @@ export class BoardView {
     }
     // A fillet sits where two hidden sides meet around an open corner and the diagonal is hidden too.
     // Only truly hidden cells count: one that is still dissolving would leave the fillet as a stray spike.
-    const solid = (j: number) => b.state[j] !== REVEALED && b.state[j] !== FLAGGED;
+    const solid = (j: number) => !this.looksOpen(j) && b.state[j] !== FLAGGED;
     const hu = r > 0 && solid(i - b.cols);
     const hd = r < b.rows - 1 && solid(i + b.cols);
     const hl = c > 0 && solid(i - 1);
@@ -144,14 +149,12 @@ export class BoardView {
     // A revealed cell only takes the open shape (fillets, grid dashes) once its dissolve is under way.
     const g = this.group(i);
     let c: string;
-    if (s === REVEALED) {
-      c = b.mine[i] ? 'c o m' : `c o n${b.adj[i]}`;
-    } else if (s === FLAGGED) {
+    if (s === FLAGGED) {
       c = this.lost && !b.mine[i] ? 'c f wf' : 'c f';
+    } else if (this.looksOpen(i)) {
+      c = b.mine[i] ? 'c o m' : `c o n${b.adj[i]}`;
     } else {
-      c = 'c h';
-      if (s === QUESTION) c += ' q';
-      if (this.lost && b.mine[i]) c += ' m';
+      c = s === QUESTION ? 'c h q' : 'c h';
     }
     c += this.shape(i, g);
     if (this.lost && i === b.exploded) c += ' x';
@@ -164,7 +167,7 @@ export class BoardView {
 
   private textFor(i: number): string {
     const b = this.board;
-    return b.state[i] === REVEALED && !b.mine[i] && b.adj[i] > 0 ? String(b.adj[i]) : '';
+    return this.looksOpen(i) && !b.mine[i] && b.adj[i] > 0 ? String(b.adj[i]) : '';
   }
 
   private sync(i: number): void {
@@ -250,6 +253,11 @@ export class BoardView {
   }
 
   /** Mines punch out of the shape one ring at a time, rippling out from the one that went off. */
+  /**
+   * As in the original: the whole shape dissolves in a wave spreading from the mine that went off,
+   * leaving numbers and mines on open ground; wrong flags get crossed out as the wave passes.
+   * Returns ms until everything has played out.
+   */
   lose(): number {
     const b = this.board;
     this.lost = true;
@@ -261,19 +269,33 @@ export class BoardView {
     const ec = b.exploded % b.cols;
     const dist = (i: number) => Math.hypot(((i / b.cols) | 0) - er, (i % b.cols) - ec);
     let far = 1;
-    for (let i = 0; i < b.size; i++) if (b.mine[i] || b.state[i] === FLAGGED) far = Math.max(far, dist(i));
-    const step = Math.min(60, 1200 / far);
+    for (let i = 0; i < b.size; i++) if (b.state[i] !== REVEALED) far = Math.max(far, dist(i));
+    const step = Math.min(LOSS.step, LOSS.wave / far) * this.speed;
+    const now = performance.now();
+    this.anim[b.exploded] = A_MINE;
+    this.delay(b.exploded, 0);
     for (let i = 0; i < b.size; i++) {
-      if (i === b.exploded) {
-        this.anim[i] = A_MINE;
-        this.delay(i, 0);
-      } else if ((b.mine[i] && b.state[i] !== FLAGGED) || (b.state[i] === FLAGGED && !b.mine[i])) {
-        this.anim[i] = A_MINE;
-        this.delay(i, 160 + dist(i) * step);
+      const s = b.state[i];
+      if (s === REVEALED) continue;
+      const at = LOSS.lead + dist(i) * step;
+      if (s === FLAGGED) {
+        if (!b.mine[i]) {
+          this.anim[i] = A_MINE;
+          this.delay(i, at);
+        }
+        continue;
       }
+      this.anim[i] = A_REVEAL;
+      this.delay(i, at);
+      this.cells[i].style.setProperty('--rd', `${Math.round(LOSS.dur * this.speed)}ms`);
+      this.pending.push({ t: now + at + LOSS.dur * 0.3 * this.speed, i });
     }
+    this.pending.sort((x, y) => x.t - y.t);
+    const end = now + (LOSS.lead + far * step + LOSS.dur) * this.speed;
+    this.revealEnd = Math.max(this.revealEnd, end);
     this.syncAll();
-    return Math.max(this.revealEnd - performance.now(), (160 + far * step + 550) * this.speed);
+    this.flushPending();
+    return Math.max(0, this.revealEnd - now);
   }
 
   /**
