@@ -248,6 +248,8 @@
   position: absolute;
   inset: 0;
   background: var(--accent);
+  /* same hairline overlap as hidden cells, so waiting cells don't show seams */
+  box-shadow: 0 0 0 1px var(--accent);
   animation: dissolve var(--rd, 0.42s) var(--ease) both;
   animation-delay: inherit;
 }
@@ -306,14 +308,11 @@
   }
 }
 
+/* Colour only: scaling the cell would also shrink the dissolving square inside it before it starts. */
 @keyframes num-in {
   0%,
-  35% {
+  40% {
     color: transparent;
-    transform: scale(0.7);
-  }
-  100% {
-    transform: scale(1);
   }
 }
 
