@@ -15,7 +15,9 @@ const A_WIN = 4;
 const A_UNFLAG = 5;
 /** Flag placed by a long press that already morphed the cell; only the icon still needs to appear. */
 const A_FLAG_SOFT = 6;
-const ANIM_CLASS = ['', ' ar', ' af', ' am', ' aw', ' au', ' af af-soft'];
+/** A mine popping out of the shape after a loss. */
+const A_POP = 7;
+const ANIM_CLASS = ['', ' ar', ' af', ' am', ' aw', ' au', ' af af-soft', ' ap'];
 
 /** Longest stagger for any one wave (ms), so huge openings don't drag on. */
 const MAX_WAVE = 480;
@@ -23,9 +25,11 @@ const MAX_WAVE = 480;
 const STEP = 20;
 const REVEAL_MS = 420;
 /** The game's opening tap gets a slower, showier ripple (dissolve length is set per cell via `--rd`). */
-const FIRST = { wave: 1000, step: 42, dur: 760 };
-/** Loss: the whole shape dissolves outward from the mine (lead-in, ms per cell of distance, cap, dissolve). */
-const LOSS = { lead: 260, step: 55, wave: 1300, dur: 620 };
+const FIRST = { wave: 1800, step: 80, dur: 900 };
+/** Later reveals that open more than one tile ripple out slower than a single tile. */
+const FLOOD = { wave: 1300, step: 60, dur: 720 };
+/** Loss, like Google's Minesweeper: the mines pop out one by one (lead-in, gap between pops, total cap, pop length). */
+const LOSS = { lead: 350, gap: 110, total: 3200, minGap: 12, dur: 520 };
 /** Win wave duration (must match `.c.o.aw`). */
 const WAVE_MS = 700;
 
@@ -96,10 +100,10 @@ export class BoardView {
     this.syncAll();
   }
 
-  /** Revealed cells, and after a loss every unflagged cell: the whole board opens up. */
+  /** Revealed cells, and after a loss every unflagged mine. */
   private looksOpen(i: number): boolean {
     const s = this.board.state[i];
-    return s === REVEALED || (this.lost && s !== FLAGGED);
+    return s === REVEALED || (this.lost && this.board.mine[i] === 1 && s !== FLAGGED);
   }
 
   private group(i: number): number {
@@ -142,8 +146,9 @@ export class BoardView {
   private classFor(i: number): string {
     const b = this.board;
     const s = b.state[i];
-    // A revealed cell only takes the open shape (fillets, grid dashes) once its dissolve is under way.
-    const g = this.group(i);
+    // An opening cell gets its rounded inner corners at once (no sharp square hole); its hidden
+    // neighbours only straighten their corners once its dissolve is under way (see `shown`).
+    const g = this.looksOpen(i) ? OPEN : this.group(i);
     let c: string;
     if (s === FLAGGED) {
       c = this.lost && !b.mine[i] ? 'c f wf' : 'c f';
@@ -206,14 +211,14 @@ export class BoardView {
     for (const o of opened) maxDepth = Math.max(maxDepth, o.depth);
     let revealed = 0;
     for (let i = 0; i < this.board.size; i++) if (this.board.state[i] === REVEALED) revealed++;
-    const first = revealed === opened.length;
-    const dur = first ? FIRST.dur : REVEAL_MS;
-    const step = (maxDepth > 0 ? Math.min(first ? FIRST.step : STEP, (first ? FIRST.wave : MAX_WAVE) / maxDepth) : 0) * this.speed;
+    const t = revealed === opened.length ? FIRST : opened.length > 1 ? FLOOD : { wave: MAX_WAVE, step: STEP, dur: REVEAL_MS };
+    const dur = t.dur;
+    const step = (maxDepth > 0 ? Math.min(t.step, t.wave / maxDepth) : 0) * this.speed;
     const now = performance.now();
     for (const o of opened) {
       this.anim[o.i] = A_REVEAL;
       this.delay(o.i, o.depth * step);
-      if (first) this.cells[o.i].style.setProperty('--rd', `${Math.round(dur * this.speed)}ms`);
+      if (dur !== REVEAL_MS) this.cells[o.i].style.setProperty('--rd', `${Math.round(dur * this.speed)}ms`);
       // The neighbours' corners follow once this cell has visibly started to shrink.
       this.pending.push({ t: now + o.depth * step + dur * 0.3 * this.speed, i: o.i });
       this.sync(o.i);
@@ -250,8 +255,8 @@ export class BoardView {
 
   /** Mines punch out of the shape one ring at a time, rippling out from the one that went off. */
   /**
-   * As in the original: the whole shape dissolves in a wave spreading from the mine that went off,
-   * leaving numbers and mines on open ground; wrong flags get crossed out as the wave passes.
+   * Like Google's Minesweeper: the mines pop out of the shape one by one, nearest the one that went off
+   * first, each leaving the usual mine icon on open ground. Wrong flags get crossed out in the same run.
    * Returns ms until everything has played out.
    */
   lose(): number {
@@ -264,30 +269,29 @@ export class BoardView {
     const er = (b.exploded / b.cols) | 0;
     const ec = b.exploded % b.cols;
     const dist = (i: number) => Math.hypot(((i / b.cols) | 0) - er, (i % b.cols) - ec);
-    let far = 1;
-    for (let i = 0; i < b.size; i++) if (b.state[i] !== REVEALED) far = Math.max(far, dist(i));
-    const step = Math.min(LOSS.step, LOSS.wave / far) * this.speed;
+    const order: number[] = [];
+    for (let i = 0; i < b.size; i++) {
+      if (i === b.exploded) continue;
+      const s = b.state[i];
+      if ((b.mine[i] && s !== FLAGGED && s !== REVEALED) || (s === FLAGGED && !b.mine[i])) order.push(i);
+    }
+    order.sort((x, y) => dist(x) - dist(y));
+    const gap = Math.max(LOSS.minGap, Math.min(LOSS.gap, LOSS.total / Math.max(1, order.length))) * this.speed;
     const now = performance.now();
     this.anim[b.exploded] = A_MINE;
     this.delay(b.exploded, 0);
-    for (let i = 0; i < b.size; i++) {
-      const s = b.state[i];
-      if (s === REVEALED) continue;
-      const at = LOSS.lead + dist(i) * step;
-      if (s === FLAGGED) {
-        if (!b.mine[i]) {
-          this.anim[i] = A_MINE;
-          this.delay(i, at);
-        }
-        continue;
-      }
-      this.anim[i] = A_REVEAL;
+    order.forEach((i, k) => {
+      const at = LOSS.lead * this.speed + k * gap;
       this.delay(i, at);
-      this.cells[i].style.setProperty('--rd', `${Math.round(LOSS.dur * this.speed)}ms`);
-      this.pending.push({ t: now + at + LOSS.dur * 0.3 * this.speed, i });
-    }
+      if (b.state[i] === FLAGGED) {
+        this.anim[i] = A_MINE;
+        return;
+      }
+      this.anim[i] = A_POP;
+      this.pending.push({ t: now + at + LOSS.dur * 0.35 * this.speed, i });
+    });
     this.pending.sort((x, y) => x.t - y.t);
-    const end = now + (LOSS.lead + far * step + LOSS.dur) * this.speed;
+    const end = now + LOSS.lead * this.speed + order.length * gap + LOSS.dur * this.speed;
     this.revealEnd = Math.max(this.revealEnd, end);
     this.syncAll();
     this.flushPending();

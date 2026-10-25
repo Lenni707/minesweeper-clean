@@ -82,3 +82,7 @@ Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compo
   - Palette is the original's pill: it grows left out of the button over the bar (clip-path) and scrolls sideways. Themes are ordered like the original's row.
   - Loss: the whole shape dissolves in a wave from the exploded mine (as in the "Smooth gameplay" screenshot), leaving numbers and mines on open ground. Wrong flags are crossed out as the wave passes. When a game ends, the bar keeps only the time, centred.
 - 2026-10-25: Matched the current original (from gameplay video frames): mine count and time centred in the bar; no grid dashes on open ground; the flag toggle is a bottom-centre pill with reveal (mine) and flag buttons and a sliding accent knob. Home presets show only their name.
+- 2026-10-25: Reveal and loss polish (user feedback).
+  - No more sharp square hole: an opening cell gets its inner-corner fillets at once (they only face truly hidden cells). The hidden neighbours still straighten their corners via `shown`.
+  - Slower multi-tile reveals: first tap 900ms dissolve at 80ms per ring (max 1.8s wave). Later floods 720ms at 60ms per ring. Single tiles stay 420ms.
+  - Loss is now Google-Minesweeper style (the user asked for it): the hidden shape stays, and the mines pop out one by one (nearest the exploded one first, 110ms apart, capped at 3.2s in total). Each pop swells the accent square then shrinks it away (`pop-out`), and the mine icon pops in behind it (`mine-pop`). Wrong flags are crossed out in the same run.

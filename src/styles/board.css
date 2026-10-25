@@ -270,7 +270,57 @@
   animation: unflag 0.5s var(--ease) backwards;
 }
 
-.c.o.m.am::before,
+/* Losing: each mine pops out of the shape. The accent square swells and rounds off, then shrinks away
+   while the mine icon pops in behind it. */
+.c.o.m.ap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  animation: pop-out 0.52s var(--ease) both;
+  animation-delay: inherit;
+}
+
+.c.o.m.ap::before {
+  animation: mine-pop 0.52s var(--ease) both;
+  animation-delay: inherit;
+}
+
+@keyframes pop-out {
+  0% {
+    transform: scale(1);
+    border-radius: 0;
+    opacity: 1;
+  }
+  30% {
+    transform: scale(1.16);
+    border-radius: 32%;
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.2);
+    border-radius: 50%;
+    opacity: 0;
+  }
+}
+
+@keyframes mine-pop {
+  0%,
+  30% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.22);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .c.wf.am::before {
   animation: icon-in 0.55s var(--ease) both;
   animation-delay: inherit;
