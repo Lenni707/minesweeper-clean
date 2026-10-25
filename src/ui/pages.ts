@@ -121,7 +121,6 @@ export interface HomeHandlers {
 export class Home {
   readonly el: HTMLElement;
   private picker: Picker;
-  private sub: HTMLElement;
   private custom: HTMLElement;
   private resumeBtn: HTMLButtonElement;
   private clampMines: () => void;
@@ -133,7 +132,6 @@ export class Home {
     palette: HTMLElement,
   ) {
     this.picker = new Picker(LEVEL_KEYS, initial, () => this.refresh());
-    this.sub = h('p', { class: 'picker-sub' });
 
     const w = stepper('Width', c.cols, () => CUSTOM_LIMITS.min, () => CUSTOM_LIMITS.max, (v) => this.updateCustom({ cols: v }));
     const ht = stepper('Height', c.rows, () => CUSTOM_LIMITS.min, () => CUSTOM_LIMITS.max, (v) => this.updateCustom({ rows: v }));
@@ -161,7 +159,6 @@ export class Home {
         { class: 'home-main' },
         h('div', { class: 'logo', html: mineLogo }),
         this.picker.el,
-        this.sub,
         this.custom,
         h('div', { class: 'home-actions' }, newGame, this.resumeBtn),
       ),
@@ -194,10 +191,8 @@ export class Home {
   }
 
   refresh(): void {
+    // Like the original, presets show only their name; custom shows its steppers.
     const key = this.picker.key;
-    const p = PRESETS.find((x) => x.id === key);
-    const dims = p ?? this.c;
-    this.sub.textContent = `${dims.cols} × ${dims.rows} · ${dims.mines} mines`;
     this.custom.classList.toggle('open', key === 'custom');
     const saved = this.hnd.hasSave(key);
     this.resumeBtn.hidden = saved === undefined;

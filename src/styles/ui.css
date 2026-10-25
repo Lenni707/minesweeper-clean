@@ -457,13 +457,6 @@
   }
 }
 
-.picker-sub {
-  margin: 0;
-  font-size: 13px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
 .custom {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
