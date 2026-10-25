@@ -81,3 +81,4 @@ Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compo
   - Mine logo and app icons redrawn from the original icon: 4 broad axis studs, 4 narrow diagonal ones, rounded corners, square hole. PWA icons are a white mine with a long shadow on #2b2b2b.
   - Palette is the original's pill: it grows left out of the button over the bar (clip-path) and scrolls sideways. Themes are ordered like the original's row.
   - Loss: the whole shape dissolves in a wave from the exploded mine (as in the "Smooth gameplay" screenshot), leaving numbers and mines on open ground. Wrong flags are crossed out as the wave passes. When a game ends, the bar keeps only the time, centred.
+- 2026-10-25: Matched the current original (from gameplay video frames): mine count and time centred in the bar; no grid dashes on open ground; the flag toggle is a bottom-centre pill with reveal (mine) and flag buttons and a sliding accent knob. Home presets show only their name.

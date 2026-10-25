@@ -125,30 +125,24 @@
 }
 
 /* Open ground and flags sit inside the shape's notches: inner-corner fillets keep those corners round.
-   Open ground also gets faint dashed grid lines. */
+   Like the current original, open ground is plain (no grid lines). */
 .c.o,
 .c.f {
   --ftl: transparent;
   --ftr: transparent;
   --fbl: transparent;
   --fbr: transparent;
-  --gx: transparent;
-  --gy: transparent;
   background:
     radial-gradient(circle at 100% 100%, transparent calc(var(--fr) - 0.5px), var(--ftl) var(--fr)) 0 0 / var(--fr) var(--fr) no-repeat,
     radial-gradient(circle at 0 100%, transparent calc(var(--fr) - 0.5px), var(--ftr) var(--fr)) 100% 0 / var(--fr) var(--fr) no-repeat,
     radial-gradient(circle at 100% 0, transparent calc(var(--fr) - 0.5px), var(--fbl) var(--fr)) 0 100% / var(--fr) var(--fr) no-repeat,
-    radial-gradient(circle at 0 0, transparent calc(var(--fr) - 0.5px), var(--fbr) var(--fr)) 100% 100% / var(--fr) var(--fr) no-repeat,
-    linear-gradient(var(--gx), var(--gx)) 100% 50% / 1px 52% no-repeat,
-    linear-gradient(var(--gy), var(--gy)) 50% 100% / 52% 1px no-repeat;
+    radial-gradient(circle at 0 0, transparent calc(var(--fr) - 0.5px), var(--fbr) var(--fr)) 100% 100% / var(--fr) var(--fr) no-repeat;
 }
 
 .c.ftl { --ftl: var(--accent); }
 .c.ftr { --ftr: var(--accent); }
 .c.fbl { --fbl: var(--accent); }
 .c.fbr { --fbr: var(--accent); }
-.c.o.gr { --gx: var(--grid); }
-.c.o.gd { --gy: var(--grid); }
 
 /* Flags: grey rounded squares. Neighbouring flags join through bridges across the inset,
    drawn as shifted shadow copies of the square that overlap 1px into the neighbour (no seams),

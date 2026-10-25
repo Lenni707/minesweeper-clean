@@ -92,7 +92,6 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
-  margin-left: 2px;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
@@ -115,17 +114,20 @@
   font-size: 12px;
   letter-spacing: 0.06em;
   color: var(--muted);
-  padding-left: 23px;
 }
 
-/* Once a game is over the original keeps only the final time, small and centred in the bar. */
-.bar[data-state='won'] .status,
-.bar[data-state='lost'] .status {
+/* The current original centres the mine count and time in the bar. Once a game is over only the final
+   time stays, in italics. */
+.status {
   position: absolute;
   left: 50%;
   top: 50%;
-  margin: 0;
   translate: -50% -50%;
+  align-items: center;
+}
+
+.bar[data-state='won'] .status,
+.bar[data-state='lost'] .status {
   animation: status-end 0.6s var(--ease) both;
 }
 
@@ -136,7 +138,6 @@
 
 .bar[data-state='won'] .status-time,
 .bar[data-state='lost'] .status-time {
-  padding: 0;
   font-size: 13px;
   font-style: italic;
   color: var(--text);
@@ -285,40 +286,59 @@
 .fab {
   position: absolute;
   z-index: 3;
-  right: calc(18px + env(safe-area-inset-right));
+  left: 50%;
   bottom: calc(18px + env(safe-area-inset-bottom));
+  translate: -50% 0;
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 30px;
+  background: var(--bg);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 4px 14px rgba(0, 0, 0, 0.18);
+}
+
+.fab button {
+  position: relative;
+  z-index: 1;
   display: grid;
   place-items: center;
-  width: 58px;
-  height: 58px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  background: var(--bg);
   color: var(--text);
-  box-shadow:
-    0 0 0 1.5px var(--line),
-    0 4px 14px rgba(0, 0, 0, 0.18);
   transition:
-    background-color 0.25s ease,
-    color 0.25s ease,
-    transform 0.2s var(--spring),
-    box-shadow 0.25s ease;
+    color 0.35s var(--ease),
+    transform 0.2s var(--ease);
+}
+
+.fab button[aria-pressed='true'] {
+  color: var(--bg);
+}
+
+.fab button:active {
+  transform: scale(0.88);
 }
 
 .fab svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
-.fab:active {
-  transform: scale(0.9);
-}
-
-.fab[aria-pressed='true'] {
+.fab-knob {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
   background: var(--accent);
-  color: var(--bg);
-  box-shadow:
-    0 0 0 1.5px var(--accent),
-    0 4px 18px color-mix(in srgb, var(--accent) 45%, transparent);
+  transition: transform 0.4s var(--ease);
+}
+
+.fab[data-mode='flag'] .fab-knob {
+  transform: translateX(50px);
 }
 
 .fab[hidden] {

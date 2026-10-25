@@ -91,10 +91,9 @@ export interface HudHandlers {
 
 export class Hud {
   readonly top: HTMLElement;
-  readonly fab: HTMLButtonElement;
+  readonly fab: HTMLElement;
   private mines: Ticker;
   private time: Ticker;
-  private mode: Mode = 'reveal';
 
   constructor(h: HudHandlers, palette: HTMLElement) {
     this.top = document.createElement('header');
@@ -108,18 +107,25 @@ export class Hud {
       <span class="bar-spacer"></span>`;
     this.top.appendChild(palette);
 
-    this.fab = document.createElement('button');
-    this.fab.type = 'button';
+    // As in the current original: a pill at the bottom centre with a reveal (mine) and a flag button;
+    // the accent knob slides behind whichever mode is active.
+    this.fab = document.createElement('div');
     this.fab.className = 'fab';
-    this.fab.setAttribute('aria-label', 'Flag mode');
-    this.fab.setAttribute('aria-pressed', 'false');
-    this.fab.innerHTML = icons.flag;
+    this.fab.setAttribute('role', 'group');
+    this.fab.setAttribute('aria-label', 'Tap mode');
+    this.fab.innerHTML = `
+      <span class="fab-knob"></span>
+      <button type="button" data-mode="reveal" aria-label="Reveal mode" aria-pressed="true">${icons.mine}</button>
+      <button type="button" data-mode="flag" aria-label="Flag mode" aria-pressed="false">${icons.flag}</button>`;
 
     this.mines = new Ticker(this.top.querySelector('.status-mines .ticker')!);
     this.time = new Ticker(this.top.querySelector('.status-time')!);
 
     this.top.querySelector('[data-act=back]')!.addEventListener('click', () => h.back());
-    this.fab.addEventListener('click', () => h.mode(this.mode === 'reveal' ? 'flag' : 'reveal'));
+    this.fab.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-mode]');
+      if (b) h.mode(b.dataset.mode as Mode);
+    });
   }
 
   setMines(n: number, animate = true): void {
@@ -131,8 +137,8 @@ export class Hud {
   }
 
   setMode(m: Mode): void {
-    this.mode = m;
-    this.fab.setAttribute('aria-pressed', String(m === 'flag'));
+    this.fab.dataset.mode = m;
+    this.fab.querySelectorAll<HTMLElement>('[data-mode]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
   }
 
   showToggle(show: boolean): void {

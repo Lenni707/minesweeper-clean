@@ -123,10 +123,6 @@ export class BoardView {
       if (dn === g) s += ' sd';
       if (lf === g) s += ' sl';
       if (g === AREA) return s;
-    } else {
-      // Faint grid dashes only between two open cells.
-      if (rt === OPEN) s += ' gr';
-      if (dn === OPEN) s += ' gd';
     }
     // A fillet sits where two hidden sides meet around an open corner and the diagonal is hidden too.
     // Only truly hidden cells count: one that is still dissolving would leave the fillet as a stray spike.

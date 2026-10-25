@@ -270,7 +270,7 @@ export function settingsPage(
       h('h1', {}, 'Settings'),
       item(
         'Flag toggle',
-        'Choose whether there is a flag toggle at the bottom right corner of the screen.',
+        'Choose whether there is a flag toggle at the bottom of the screen.',
         onOff(toggleShown, (v) => update({ toggle: v ? 'always' : 'never' })),
       ),
       item(
