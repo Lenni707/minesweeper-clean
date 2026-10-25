@@ -1,0 +1,318 @@
+.stage {
+  position: relative;
+  overflow: hidden;
+  touch-action: none;
+  min-height: 0;
+  cursor: default;
+}
+
+.stage.grabbing {
+  cursor: grabbing;
+}
+
+.board {
+  --cell: 32px;
+  --lp: 300ms;
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--cols), var(--cell));
+  grid-auto-rows: var(--cell);
+  gap: calc(var(--cell) * 0.1);
+  transform-origin: 0 0;
+  will-change: transform;
+  contain: layout style;
+}
+
+.board.vp-anim {
+  transition: transform 0.32s var(--out);
+}
+
+.board.shake {
+  animation: shake 0.45s var(--out);
+}
+
+/* ---- cells ---------------------------------------------------------------- */
+
+.c {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: calc(var(--cell) * 0.24);
+  font-size: calc(var(--cell) * 0.54);
+  font-weight: 720;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transition:
+    transform 0.12s var(--out),
+    background-color 0.15s ease;
+}
+
+.c.h {
+  background: linear-gradient(to bottom, var(--tile-hi), var(--tile));
+  box-shadow: inset 0 calc(var(--cell) * -0.06) 0 var(--tile-edge);
+}
+
+.c.h.hv {
+  background: var(--tile-hover);
+}
+
+.c.o {
+  background: var(--open);
+}
+
+.c.p {
+  transform: scale(0.88);
+}
+
+.c.h.pv {
+  background: var(--open);
+  box-shadow: none;
+  transform: scale(0.92);
+}
+
+.n1 { color: var(--n1); }
+.n2 { color: var(--n2); }
+.n3 { color: var(--n3); }
+.n4 { color: var(--n4); }
+.n5 { color: var(--n5); }
+.n6 { color: var(--n6); }
+.n7 { color: var(--n7); }
+.n8 { color: var(--n8); }
+
+/* Icons are SVG masks so they take the theme colour. */
+.c.f::before,
+.c.m::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 56%;
+  height: 56%;
+  -webkit-mask: var(--icon) center / contain no-repeat;
+  mask: var(--icon) center / contain no-repeat;
+}
+
+.c.f::before {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 2.5a1.5 1.5 0 0 1 1.5 1.5v.5h11.2a1 1 0 0 1 .86 1.5L16.4 9.5l2.16 3.5a1 1 0 0 1-.86 1.5H6.5V20a1.5 1.5 0 0 1-3 0V4A1.5 1.5 0 0 1 5 2.5z'/%3E%3C/svg%3E");
+  background: var(--flag);
+  transform-origin: 30% 85%;
+}
+
+.c.m::before {
+  --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cg stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4M5.3 5.3l2.8 2.8M15.9 15.9l2.8 2.8M5.3 18.7l2.8-2.8M15.9 8.1l2.8-2.8'/%3E%3C/g%3E%3Ccircle cx='12' cy='12' r='6.2'/%3E%3C/svg%3E");
+  background: var(--mine);
+  width: 62%;
+  height: 62%;
+}
+
+.c.q::before {
+  content: '?';
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.c.x {
+  background: var(--danger);
+}
+
+.c.x::before {
+  background: #fff;
+}
+
+/* Wrong flag: the flag fades and gets a slash. */
+.c.wf::before {
+  opacity: 0.35;
+}
+
+.c.wf::after {
+  content: '';
+  position: absolute;
+  inset: 18%;
+  background:
+    linear-gradient(45deg, transparent 45%, var(--danger) 45%, var(--danger) 55%, transparent 55%),
+    linear-gradient(-45deg, transparent 45%, var(--danger) 45%, var(--danger) 55%, transparent 55%);
+}
+
+/* Long-press ring */
+.c.lp::after {
+  content: '';
+  position: absolute;
+  inset: -14%;
+  border-radius: 50%;
+  border: max(2px, calc(var(--cell) * 0.07)) solid var(--accent);
+  animation: ring var(--lp) linear forwards;
+  pointer-events: none;
+}
+
+/* ---- animations ------------------------------------------------------------ */
+
+.c.ar {
+  animation: reveal 0.38s var(--out) both;
+}
+
+.c.af::before {
+  animation: flag-in 0.42s var(--spring) both;
+  animation-delay: inherit;
+}
+
+.c.au {
+  animation: settle 0.28s var(--spring);
+}
+
+.c.am {
+  animation: mine-in 0.42s var(--spring) both;
+}
+
+.c.am::before {
+  animation: pop 0.42s var(--spring) both;
+  animation-delay: inherit;
+}
+
+.c.x.am {
+  animation: boom 0.6s var(--out) both;
+}
+
+.c.x.am::before {
+  animation: pop 0.5s var(--spring) both;
+}
+
+.c.aw {
+  animation: wave 0.6s var(--out) both;
+}
+
+@keyframes reveal {
+  0%,
+  25% {
+    background-color: var(--tile);
+    color: transparent;
+    transform: scale(1);
+  }
+  55% {
+    transform: scale(0.8);
+    color: transparent;
+  }
+  82% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes flag-in {
+  0% {
+    transform: scale(0) rotate(-30deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.18) rotate(6deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes settle {
+  0% {
+    transform: scale(0.84);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes mine-in {
+  0% {
+    background-color: var(--tile);
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(0.78);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes pop {
+  0%,
+  30% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes boom {
+  0% {
+    background-color: var(--tile);
+    transform: scale(1);
+    box-shadow: 0 0 0 0 var(--danger);
+  }
+  30% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 calc(var(--cell) * 0.9) transparent;
+  }
+}
+
+@keyframes wave {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  40% {
+    transform: translateY(calc(var(--cell) * -0.18)) scale(1.06);
+    background-color: var(--win);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes ring {
+  0% {
+    transform: scale(0.35);
+    opacity: 0;
+  }
+  35% {
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* `translate` composes with the viewport's `transform`, so the shake doesn't fight it. */
+@keyframes shake {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  15% {
+    translate: -7px 2px;
+  }
+  30% {
+    translate: 6px -2px;
+  }
+  45% {
+    translate: -5px 1px;
+  }
+  60% {
+    translate: 4px 0;
+  }
+  80% {
+    translate: -2px 0;
+  }
+}

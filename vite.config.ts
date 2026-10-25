@@ -28,6 +28,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // The UI is English-only; other Inter subsets load on demand if ever needed.
+        globIgnores: ['**/inter-{cyrillic,greek,vietnamese}*'],
       },
     }),
   ],
