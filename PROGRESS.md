@@ -32,7 +32,7 @@ Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compo
 
 ## Checklist
 - [x] M1 Scaffold: Vite+TS, repo, Pages workflow, Docker, PROGRESS.md
-- [ ] M2 Engine + tests
+- [x] M2 Engine + tests (19 Vitest cases)
 - [ ] M3 Board rendering + gestures + viewport (playable)
 - [ ] M4 HUD, presets, custom, autosave, stats
 - [ ] M5 Themes, animations, haptics, desktop polish
@@ -40,3 +40,4 @@ Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compo
 
 ## Log
 - 2026-10-25: M1 scaffold. Toolchain: vite 8.3, vitest 5, typescript 7, vite-plugin-pwa 2. Docker build/run on node:22-alpine + nginx:1.27-alpine.
+- 2026-10-25: M2 engine. Lazy placement keeps the 3x3 around the first tap clear (falls back to the tapped cell alone when dense). Reveal/chord return BFS depth for animation. The timer pauses on restore and resumes on the next move.
