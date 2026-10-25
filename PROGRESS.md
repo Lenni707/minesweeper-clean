@@ -74,3 +74,4 @@ Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compo
   - Reveal is now 0.42s with 20ms per ring (max 480ms wave). Win wave 0.7s.
   - `BoardView.shown` is the visual open state and trails the engine. Cells join the open group (corners, fillets, grid dashes) from a rAF `pending` queue at about 30% of their own dissolve, so the shape no longer snaps open before the animation.
   - `win()` starts the wave only after `revealEnd`. `win()` and `lose()` return the full animation length, and the end card appears at animMs + 300 with no cap.
+- 2026-10-25: The first reveal of a game is slower (760ms dissolve, 42ms per ring, max 1000ms wave), set per cell with `--rd`. Removed the "arrow" spikes: fillets on open cells now only face truly hidden cells (not ones still dissolving), and a revealed cell takes the open shape only once it is `shown`.

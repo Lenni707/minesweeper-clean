@@ -22,6 +22,8 @@ const MAX_WAVE = 480;
 /** Per-ring stagger cap and the dissolve duration (must match `.c.o.ar` in board.css). */
 const STEP = 20;
 const REVEAL_MS = 420;
+/** The game's opening tap gets a slower, showier ripple (dissolve length is set per cell via `--rd`). */
+const FIRST = { wave: 1000, step: 42, dur: 760 };
 /** Win wave duration (must match `.c.o.aw`). */
 const WAVE_MS = 700;
 
@@ -122,18 +124,25 @@ export class BoardView {
       if (dn === OPEN) s += ' gd';
     }
     // A fillet sits where two hidden sides meet around an open corner and the diagonal is hidden too.
-    const diag = (dr: number, dc: number) => this.group(i + dr * b.cols + dc) === AREA;
-    if (up === AREA && lf === AREA && diag(-1, -1)) s += ' ftl';
-    if (up === AREA && rt === AREA && diag(-1, 1)) s += ' ftr';
-    if (dn === AREA && lf === AREA && diag(1, -1)) s += ' fbl';
-    if (dn === AREA && rt === AREA && diag(1, 1)) s += ' fbr';
+    // Only truly hidden cells count: one that is still dissolving would leave the fillet as a stray spike.
+    const solid = (j: number) => b.state[j] !== REVEALED && b.state[j] !== FLAGGED;
+    const hu = r > 0 && solid(i - b.cols);
+    const hd = r < b.rows - 1 && solid(i + b.cols);
+    const hl = c > 0 && solid(i - 1);
+    const hr = c < b.cols - 1 && solid(i + 1);
+    const diag = (dr: number, dc: number) => solid(i + dr * b.cols + dc);
+    if (hu && hl && diag(-1, -1)) s += ' ftl';
+    if (hu && hr && diag(-1, 1)) s += ' ftr';
+    if (hd && hl && diag(1, -1)) s += ' fbl';
+    if (hd && hr && diag(1, 1)) s += ' fbr';
     return s;
   }
 
   private classFor(i: number): string {
     const b = this.board;
     const s = b.state[i];
-    const g = s === REVEALED ? OPEN : this.group(i);
+    // A revealed cell only takes the open shape (fillets, grid dashes) once its dissolve is under way.
+    const g = this.group(i);
     let c: string;
     if (s === REVEALED) {
       c = b.mine[i] ? 'c o m' : `c o n${b.adj[i]}`;
@@ -196,16 +205,21 @@ export class BoardView {
     if (opened.length === 0) return;
     let maxDepth = 0;
     for (const o of opened) maxDepth = Math.max(maxDepth, o.depth);
-    const step = (maxDepth > 0 ? Math.min(STEP, MAX_WAVE / maxDepth) : 0) * this.speed;
+    let revealed = 0;
+    for (let i = 0; i < this.board.size; i++) if (this.board.state[i] === REVEALED) revealed++;
+    const first = revealed === opened.length;
+    const dur = first ? FIRST.dur : REVEAL_MS;
+    const step = (maxDepth > 0 ? Math.min(first ? FIRST.step : STEP, (first ? FIRST.wave : MAX_WAVE) / maxDepth) : 0) * this.speed;
     const now = performance.now();
     for (const o of opened) {
       this.anim[o.i] = A_REVEAL;
       this.delay(o.i, o.depth * step);
+      if (first) this.cells[o.i].style.setProperty('--rd', `${Math.round(dur * this.speed)}ms`);
       // The neighbours' corners follow once this cell has visibly started to shrink.
-      this.pending.push({ t: now + o.depth * step + REVEAL_MS * 0.3 * this.speed, i: o.i });
+      this.pending.push({ t: now + o.depth * step + dur * 0.3 * this.speed, i: o.i });
       this.sync(o.i);
     }
-    this.revealEnd = Math.max(this.revealEnd, now + (maxDepth * step + REVEAL_MS) * this.speed);
+    this.revealEnd = Math.max(this.revealEnd, now + (maxDepth * step + dur) * this.speed);
     this.pending.sort((a, b) => a.t - b.t);
     this.flushPending();
   }

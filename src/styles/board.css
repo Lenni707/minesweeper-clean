@@ -240,7 +240,7 @@
 
 /* Revealed cells melt out of the shape: the square rounds off, shrinks and fades. */
 .c.o.ar {
-  animation: num-in 0.42s var(--ease) both;
+  animation: num-in var(--rd, 0.42s) var(--ease) both;
 }
 
 .c.o.ar::after {
@@ -248,7 +248,7 @@
   position: absolute;
   inset: 0;
   background: var(--accent);
-  animation: dissolve 0.42s var(--ease) both;
+  animation: dissolve var(--rd, 0.42s) var(--ease) both;
   animation-delay: inherit;
 }
 
