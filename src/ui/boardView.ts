@@ -28,8 +28,11 @@ const REVEAL_MS = 420;
 const FIRST = { wave: 1800, step: 80, dur: 900 };
 /** Later reveals that open more than one tile ripple out slower than a single tile. */
 const FLOOD = { wave: 1300, step: 60, dur: 720 };
-/** Loss, like Google's Minesweeper: the mines pop out one by one (lead-in, gap between pops, total cap, pop length). */
-const LOSS = { lead: 350, gap: 110, total: 3200, minGap: 12, dur: 520 };
+/**
+ * Loss, like Google's Minesweeper: the mines pop out one by one, starting slow and speeding up
+ * exponentially (each gap is `shrink` times the last), so even 300 mines finish in about `first / (1 - shrink)`.
+ */
+const LOSS = { lead: 320, first: 170, shrink: 0.86, minGap: 4, dur: 460 };
 /** Win wave duration (must match `.c.o.aw`). */
 const WAVE_MS = 700;
 
@@ -276,22 +279,25 @@ export class BoardView {
       if ((b.mine[i] && s !== FLAGGED && s !== REVEALED) || (s === FLAGGED && !b.mine[i])) order.push(i);
     }
     order.sort((x, y) => dist(x) - dist(y));
-    const gap = Math.max(LOSS.minGap, Math.min(LOSS.gap, LOSS.total / Math.max(1, order.length))) * this.speed;
     const now = performance.now();
     this.anim[b.exploded] = A_MINE;
     this.delay(b.exploded, 0);
-    order.forEach((i, k) => {
-      const at = LOSS.lead * this.speed + k * gap;
+    let at = LOSS.lead * this.speed;
+    let gap = LOSS.first;
+    order.forEach((i) => {
       this.delay(i, at);
+      const t = at;
+      at += gap * this.speed;
+      gap = Math.max(LOSS.minGap, gap * LOSS.shrink);
       if (b.state[i] === FLAGGED) {
         this.anim[i] = A_MINE;
         return;
       }
       this.anim[i] = A_POP;
-      this.pending.push({ t: now + at + LOSS.dur * 0.35 * this.speed, i });
+      this.pending.push({ t: now + t + LOSS.dur * 0.35 * this.speed, i });
     });
     this.pending.sort((x, y) => x.t - y.t);
-    const end = now + LOSS.lead * this.speed + order.length * gap + LOSS.dur * this.speed;
+    const end = now + at + LOSS.dur * this.speed;
     this.revealEnd = Math.max(this.revealEnd, end);
     this.syncAll();
     this.flushPending();

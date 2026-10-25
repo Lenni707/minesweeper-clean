@@ -16,6 +16,8 @@
   --spring: cubic-bezier(0.25, 1.35, 0.4, 1);
   /* soft, no-overshoot easing used by most animations */
   --ease: cubic-bezier(0.33, 0, 0.15, 1);
+  /* gentle in, gentle out: for tiles collapsing away */
+  --collapse: cubic-bezier(0.45, 0, 0.25, 1);
 }
 
 [data-tone='dark'] {

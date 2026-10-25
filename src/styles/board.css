@@ -54,6 +54,8 @@
   border-radius: var(--r);
   /* hairline overlap so neighbouring cells never show a seam at fractional zoom */
   box-shadow: 0 0 0 0.5px var(--accent);
+  /* corners round off (or square up) softly as neighbours open, instead of snapping */
+  transition: border-radius 0.35s var(--collapse);
 }
 
 .c.h.su { border-top-left-radius: 0; border-top-right-radius: 0; }
@@ -240,7 +242,7 @@
   background: var(--accent);
   /* same hairline overlap as hidden cells, so waiting cells don't show seams */
   box-shadow: 0 0 0 1px var(--accent);
-  animation: dissolve var(--rd, 0.42s) var(--ease) both;
+  animation: dissolve var(--rd, 0.42s) var(--collapse) both;
   animation-delay: inherit;
 }
 
@@ -278,12 +280,12 @@
   inset: 0;
   background: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
-  animation: pop-out 0.52s var(--ease) both;
+  animation: pop-out 0.46s var(--collapse) both;
   animation-delay: inherit;
 }
 
 .c.o.m.ap::before {
-  animation: mine-pop 0.52s var(--ease) both;
+  animation: mine-pop 0.46s var(--collapse) both;
   animation-delay: inherit;
 }
 
@@ -293,13 +295,15 @@
     border-radius: 0;
     opacity: 1;
   }
-  30% {
-    transform: scale(1.16);
-    border-radius: 32%;
+  22% {
+    transform: scale(1.08);
+    border-radius: 30%;
+  }
+  40% {
     opacity: 1;
   }
   100% {
-    transform: scale(0.2);
+    transform: scale(0.08);
     border-radius: 50%;
     opacity: 0;
   }
@@ -307,13 +311,13 @@
 
 @keyframes mine-pop {
   0%,
-  30% {
+  25% {
     opacity: 0;
-    transform: scale(0.3);
+    transform: scale(0.5);
   }
   70% {
     opacity: 1;
-    transform: scale(1.22);
+    transform: scale(1.12);
   }
   100% {
     opacity: 1;
@@ -330,19 +334,19 @@
   animation: wave 0.7s var(--ease) both;
 }
 
+/* One continuous curve for size and roundness (no mid keyframe, so no change of pace);
+   only the fade-out starts later. */
 @keyframes dissolve {
   0% {
     transform: scale(1);
     border-radius: 0;
     opacity: 1;
   }
-  35% {
-    transform: scale(0.82);
-    border-radius: 28%;
+  45% {
     opacity: 1;
   }
   100% {
-    transform: scale(0.15);
+    transform: scale(0.08);
     border-radius: 50%;
     opacity: 0;
   }
