@@ -62,7 +62,6 @@ const hud = new Hud(
   {
     back: () => history.back(),
     mode: (m) => setMode(m),
-    fit: () => vp.fit(),
   },
   paletteButton(currentTheme, pickTheme),
 );
@@ -86,7 +85,9 @@ const gestures = new Gestures(stage, vp, {
   primary: (i) => (mode === 'reveal' ? reveal(i) : flag(i)),
   secondary: (i) => (mode === 'reveal' ? flag(i) : reveal(i)),
   chord: (i) => chord(i),
-  press: (i, long) => view.setPressed(board.over ? -1 : i, long && i >= 0 && board.state[i] !== REVEALED),
+  // A long press morphs the cell toward what it will become: a flag, or open ground in flag mode.
+  press: (i, long) =>
+    view.setPressed(board.over ? -1 : i, !long || i < 0 || board.state[i] === REVEALED ? '' : mode === 'reveal' ? 'flag' : 'open'),
   hover: (i) => view.setHover(board.over ? -1 : i),
   chordPreview: (i) => view.setChordPreview(i),
 });
@@ -201,6 +202,7 @@ function applySettings(patch: Partial<store.Settings>): void {
   if ('reducedMotion' in patch) applyMotion();
   if ('toggle' in patch) applyToggle();
   gestures.longPressMs = settings.longPressMs;
+  view.longPressMs = settings.longPressMs;
   boardEl.style.setProperty('--lp', `${settings.longPressMs}ms`);
 }
 

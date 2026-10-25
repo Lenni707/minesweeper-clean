@@ -13,10 +13,12 @@ const A_FLAG = 2;
 const A_MINE = 3;
 const A_WIN = 4;
 const A_UNFLAG = 5;
-const ANIM_CLASS = ['', ' ar', ' af', ' am', ' aw', ' au'];
+/** Flag placed by a long press that already morphed the cell; only the icon still needs to appear. */
+const A_FLAG_SOFT = 6;
+const ANIM_CLASS = ['', ' ar', ' af', ' am', ' aw', ' au', ' af af-soft'];
 
 /** Longest stagger for any one wave (ms), so huge openings don't drag on. */
-const MAX_WAVE = 650;
+const MAX_WAVE = 900;
 
 /** Which shape a cell belongs to: 0 = open ground, 1 = the hidden area, 2 = flags. */
 const OPEN = 0;
@@ -31,7 +33,12 @@ export class BoardView {
   private anim = new Uint8Array(0);
   private lost = false;
   private pressed = -1;
-  private longPress = false;
+  private pressKind: '' | 'flag' | 'open' = '';
+  /** The cell whose long-press morph just finished (the flag lands on it next). */
+  private morphed = -1;
+  private pressedAt = 0;
+  /** Matches the gesture's long-press delay, so we can tell a finished morph from a tap. */
+  longPressMs = 300;
   private hovered = -1;
   private preview = new Set<number>();
   /** Multiplier on animation delays (0 when motion is reduced). */
@@ -72,7 +79,7 @@ export class BoardView {
     return AREA;
   }
 
-  /** Same-group neighbours as side classes, and inner-corner fillets for open cells. */
+  /** Same-group neighbours as side classes, and inner-corner fillets for open and flag cells. */
   private shape(i: number, g: number): string {
     const b = this.board;
     const r = (i / b.cols) | 0;
@@ -87,11 +94,12 @@ export class BoardView {
       if (rt === g) s += ' sr';
       if (dn === g) s += ' sd';
       if (lf === g) s += ' sl';
-      return s;
+      if (g === AREA) return s;
+    } else {
+      // Faint grid dashes only between two open cells.
+      if (rt === OPEN) s += ' gr';
+      if (dn === OPEN) s += ' gd';
     }
-    // Faint grid dashes only between two open cells.
-    if (rt === OPEN) s += ' gr';
-    if (dn === OPEN) s += ' gd';
     // A fillet sits where two hidden sides meet around an open corner and the diagonal is hidden too.
     const diag = (dr: number, dc: number) => this.group(i + dr * b.cols + dc) === AREA;
     if (up === AREA && lf === AREA && diag(-1, -1)) s += ' ftl';
@@ -118,7 +126,7 @@ export class BoardView {
     c += this.shape(i, g);
     if (this.lost && i === b.exploded) c += ' x';
     c += ANIM_CLASS[this.anim[i]];
-    if (i === this.pressed) c += this.longPress ? ' p lp' : ' p';
+    if (i === this.pressed) c += this.pressKind === 'flag' ? ' p lp' : this.pressKind === 'open' ? ' p lo' : ' p';
     if (i === this.hovered) c += ' hv';
     if (this.preview.has(i)) c += ' pv';
     return c;
@@ -154,7 +162,12 @@ export class BoardView {
   }
 
   private delay(i: number, ms: number): void {
-    this.cells[i].style.animationDelay = ms > 0 ? `${Math.round(ms * this.speed)}ms` : '';
+    const v = ms > 0 ? `${Math.round(ms * this.speed)}ms` : '';
+    const st = this.cells[i].style;
+    st.animationDelay = v;
+    // Pseudo-elements that add their own offset read the delay from here.
+    if (v) st.setProperty('--d', v);
+    else st.removeProperty('--d');
   }
 
   /** Newly opened cells dissolve out of the shape, staggered by flood-fill depth. */
@@ -162,7 +175,7 @@ export class BoardView {
     if (opened.length === 0) return;
     let maxDepth = 0;
     for (const o of opened) maxDepth = Math.max(maxDepth, o.depth);
-    const step = maxDepth > 0 ? Math.min(24, MAX_WAVE / maxDepth) : 0;
+    const step = maxDepth > 0 ? Math.min(34, MAX_WAVE / maxDepth) : 0;
     for (const o of opened) {
       this.anim[o.i] = A_REVEAL;
       this.delay(o.i, o.depth * step);
@@ -171,7 +184,9 @@ export class BoardView {
   }
 
   flag(i: number): void {
-    this.anim[i] = this.board.state[i] === FLAGGED ? A_FLAG : A_UNFLAG;
+    const flagged = this.board.state[i] === FLAGGED;
+    this.anim[i] = !flagged ? A_UNFLAG : this.morphed === i ? A_FLAG_SOFT : A_FLAG;
+    this.morphed = -1;
     this.delay(i, 0);
     this.syncAround(i);
   }
@@ -189,7 +204,7 @@ export class BoardView {
     const dist = (i: number) => Math.hypot(((i / b.cols) | 0) - er, (i % b.cols) - ec);
     let far = 1;
     for (let i = 0; i < b.size; i++) if (b.mine[i] || b.state[i] === FLAGGED) far = Math.max(far, dist(i));
-    const step = Math.min(45, 900 / far);
+    const step = Math.min(60, 1200 / far);
     for (let i = 0; i < b.size; i++) {
       if (i === b.exploded) {
         this.anim[i] = A_MINE;
@@ -208,7 +223,7 @@ export class BoardView {
     const b = this.board;
     this.el.classList.add('won');
     const diag = b.rows + b.cols - 2 || 1;
-    const step = Math.min(26, 900 / diag);
+    const step = Math.min(34, 1100 / diag);
     for (let i = 0; i < b.size; i++) {
       const r = (i / b.cols) | 0;
       const c = i % b.cols;
@@ -234,10 +249,14 @@ export class BoardView {
     );
   }
 
-  setPressed(i: number, long: boolean): void {
+  setPressed(i: number, kind: '' | 'flag' | 'open'): void {
     const prev = this.pressed;
+    // A long-press that ran its course is released right before the flag lands.
+    const held = performance.now() - this.pressedAt;
+    this.morphed = i < 0 && this.pressKind === 'flag' && held >= this.longPressMs - 20 ? prev : -1;
+    if (i >= 0 && i !== prev) this.pressedAt = performance.now();
     this.pressed = i;
-    this.longPress = long;
+    this.pressKind = kind;
     if (prev >= 0) this.sync(prev);
     if (i >= 0) this.sync(i);
   }

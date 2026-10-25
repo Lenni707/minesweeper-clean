@@ -30,7 +30,7 @@ src/ui/gestures.ts       pointer events: tap / long-press / pan / pinch / mouse 
 src/ui/viewport.ts       transform zoom+pan, fit-to-screen
 src/ui/hud.ts            game bar (back · mines/time · fit · palette), flag FAB, palette dot bar, formatTime ("3M 41S")
 src/ui/pages.ts          home (logo, ‹ level › picker, custom steppers, New Game), settings, high scores, about, end card
-src/ui/themes.ts         9 themes = background + accent (colours sampled from the Play Store screenshots)
+src/ui/themes.ts         15 themes = background + accent (the original 9 sampled from the store screenshots + lilac, coral, mint, violet, plum, midnight). Default: violet (dark) / lilac (light)
 src/state/storage.ts     saves per difficulty, stats, best times, settings
 ```
 Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compose up --build` → :8080
@@ -64,3 +64,9 @@ Deploy: GitHub Pages (`BASE_PATH=/minesweeper-clean/`). Container: `docker compo
   - Flag bridges are box-shadow copies of the inset square offset by fi+1px, so merged flags have no seams and L-joins stay clean.
   - Reveal = an accent ::after square shrinking to a circle (the "dissolve"). On a loss, mines are cut out of the shape (bg-coloured mask). The mine mask is generated from `minePath()` in icons.ts.
   - The preset names (Easy…Insane) and sizes beyond Easy/Medium/Hard are my guesses; the store listing only says "5 levels".
+- 2026-10-25: Animation polish (user: "too blocky", "slower", "more seamless").
+  - Every board animation uses `--ease` (cubic-bezier(.33,0,.15,1), no overshoot). Durations: reveal 0.7s (34ms/ring, max 900ms wave), flag 0.55s, screens 0.5s.
+  - Hidden cells have an always-present rounded `::after` overlay. Hover lightens it, press darkens it, and a long-press (`lp`) morphs it over `--lp` into the grey flag square. In flag mode (`lo`) it shrinks to a dot.
+  - Flag placed after a finished long-press morph gets `af-soft` (just settle + icon). A tap-placed flag morphs accent → grey rounded square (`flag-morph`). Unflag swells the grey back into the shape (fill `backwards`, so hover still works afterwards).
+  - Fillets now also apply to flag cells (vars renamed --ftl/--ftr/--fbl/--fbr to avoid clashing with the flag bridges' --bl/--br).
+  - Removed the fit/fullscreen button (`Z` key still refits). The palette is now a 5-wide popover grid.

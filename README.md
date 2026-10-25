@@ -10,7 +10,7 @@ A minimal, smoothly animated Minesweeper in the style of "Minesweeper – The Cl
 - Tap to reveal, long-press to flag (the delay is adjustable), tap a satisfied number to chord. An optional on-screen reveal/flag toggle
 - Pinch zoom and pan with momentum. On desktop: right-click flags, middle-click or left+right chords, ctrl/⌘ + scroll zooms
 - Animations: cells dissolve out of the shape in a ripple, flags pop and merge, mines punch out of the shape on a loss, a wave on a win
-- 9 themes (a background plus an accent each), picked from the palette button
+- 15 themes (a background plus an accent each, including violet, plum and lilac), picked from the palette button
 - Autosave for every difficulty, best times, win rate, streaks
 - Installable PWA that works fully offline
 

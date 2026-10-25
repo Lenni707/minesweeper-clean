@@ -53,7 +53,7 @@ export function paletteButton(current: () => ThemeId, pick: (id: ThemeId) => voi
   wrap.className = 'palette';
   const dots = THEMES.map(
     (t, k) =>
-      `<button type="button" class="dot" data-theme-id="${t.id}" style="--ring:${t.bg};--fill:${t.accent};--k:${THEMES.length - k}" aria-label="${t.id} theme"></button>`,
+      `<button type="button" class="dot" data-theme-id="${t.id}" style="--ring:${t.bg};--fill:${t.accent};--k:${k}" aria-label="${t.id} theme"></button>`,
   ).join('');
   wrap.innerHTML = `<div class="dots">${dots}</div><button type="button" class="icon-btn palette-btn" aria-label="Themes">${icons.palette}</button>`;
   const mark = () =>
@@ -83,7 +83,6 @@ export function paletteButton(current: () => ThemeId, pick: (id: ThemeId) => voi
 export interface HudHandlers {
   back(): void;
   mode(m: Mode): void;
-  fit(): void;
 }
 
 export class Hud {
@@ -102,8 +101,7 @@ export class Hud {
         <span class="status-mines">${icons.mine}<span class="ticker"></span></span>
         <span class="status-time ticker"></span>
       </div>
-      <span class="bar-spacer"></span>
-      <button class="icon-btn fit-btn" data-act="fit" type="button" aria-label="Fit board to screen">${icons.fit}</button>`;
+      <span class="bar-spacer"></span>`;
     this.top.appendChild(palette);
 
     this.fab = document.createElement('button');
@@ -117,7 +115,6 @@ export class Hud {
     this.time = new Ticker(this.top.querySelector('.status-time')!);
 
     this.top.querySelector('[data-act=back]')!.addEventListener('click', () => h.back());
-    this.top.querySelector('[data-act=fit]')!.addEventListener('click', () => h.fit());
     this.fab.addEventListener('click', () => h.mode(this.mode === 'reveal' ? 'flag' : 'reveal'));
   }
 

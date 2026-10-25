@@ -1,6 +1,21 @@
 import type { SavedGame } from '../engine/board';
 
-export type ThemeId = 'sand' | 'olive' | 'ember' | 'steel' | 'rose' | 'ocean' | 'forest' | 'berry' | 'neon';
+export type ThemeId =
+  | 'sand'
+  | 'steel'
+  | 'rose'
+  | 'lilac'
+  | 'coral'
+  | 'olive'
+  | 'ember'
+  | 'ocean'
+  | 'forest'
+  | 'mint'
+  | 'violet'
+  | 'plum'
+  | 'berry'
+  | 'neon'
+  | 'midnight';
 export type ToggleMode = 'auto' | 'always' | 'never';
 
 export interface Settings {

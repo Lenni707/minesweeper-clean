@@ -28,11 +28,11 @@
 }
 
 .board.vp-anim {
-  transition: transform 0.32s var(--out);
+  transition: transform 0.45s var(--ease);
 }
 
 .board.shake {
-  animation: shake 0.45s var(--out);
+  animation: shake 0.6s var(--ease);
 }
 
 /* ---- cells --------------------------------------------------------------------- */
@@ -54,7 +54,6 @@
   border-radius: var(--r);
   /* hairline overlap so neighbouring cells never show a seam at fractional zoom */
   box-shadow: 0 0 0 0.5px var(--accent);
-  transition: filter 0.15s ease;
 }
 
 .c.h.su { border-top-left-radius: 0; border-top-right-radius: 0; }
@@ -62,9 +61,62 @@
 .c.h.sl { border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .c.h.sr { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 
-.c.h.hv { filter: brightness(1.07); }
-.c.h.p { filter: brightness(0.9); }
-.c.h.pv { filter: brightness(0.82); }
+/* Hover / press / long-press live in a rounded square inside the cell, never the square cell itself. */
+.c.h::after {
+  content: '';
+  position: absolute;
+  inset: var(--fi);
+  border-radius: var(--r);
+  background: color-mix(in srgb, #fff 26%, transparent);
+  opacity: 0;
+  transform: scale(0.8);
+  transition:
+    opacity 0.28s var(--ease),
+    transform 0.32s var(--ease),
+    background-color 0.32s var(--ease),
+    border-radius 0.32s var(--ease);
+  pointer-events: none;
+}
+
+.c.h.hv::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.c.h.p::after {
+  opacity: 1;
+  transform: scale(0.86);
+  background: color-mix(in srgb, #000 16%, transparent);
+  transition-duration: 0.18s;
+}
+
+/* Holding to flag: the cell slowly becomes the grey flag square. */
+.c.h.p.lp::after {
+  transform: scale(1);
+  background: var(--flag-bg);
+  transition:
+    opacity 0.12s ease,
+    transform var(--lp) var(--ease),
+    background-color var(--lp) var(--ease);
+}
+
+/* Holding to open (flag mode): the cell shrinks toward a dot. */
+.c.h.p.lo::after {
+  transform: scale(0.35);
+  border-radius: 50%;
+  background: var(--bg);
+  transition:
+    opacity 0.12s ease,
+    transform var(--lp) var(--ease),
+    background-color var(--lp) var(--ease),
+    border-radius var(--lp) var(--ease);
+}
+
+.c.h.pv::after {
+  opacity: 1;
+  transform: scale(0.9);
+  background: color-mix(in srgb, #000 18%, transparent);
+}
 
 .c.q::before {
   content: '?';
@@ -72,27 +124,29 @@
   font-weight: 500;
 }
 
-/* Open ground: inner-corner fillets of the hidden shape + faint dashed grid lines. */
-.c.o {
-  --tl: transparent;
-  --tr: transparent;
-  --bl: transparent;
-  --br: transparent;
+/* Open ground and flags sit inside the shape's notches: inner-corner fillets keep those corners round.
+   Open ground also gets faint dashed grid lines. */
+.c.o,
+.c.f {
+  --ftl: transparent;
+  --ftr: transparent;
+  --fbl: transparent;
+  --fbr: transparent;
   --gx: transparent;
   --gy: transparent;
   background:
-    radial-gradient(circle at 100% 100%, transparent calc(var(--fr) - 0.5px), var(--tl) var(--fr)) 0 0 / var(--fr) var(--fr) no-repeat,
-    radial-gradient(circle at 0 100%, transparent calc(var(--fr) - 0.5px), var(--tr) var(--fr)) 100% 0 / var(--fr) var(--fr) no-repeat,
-    radial-gradient(circle at 100% 0, transparent calc(var(--fr) - 0.5px), var(--bl) var(--fr)) 0 100% / var(--fr) var(--fr) no-repeat,
-    radial-gradient(circle at 0 0, transparent calc(var(--fr) - 0.5px), var(--br) var(--fr)) 100% 100% / var(--fr) var(--fr) no-repeat,
+    radial-gradient(circle at 100% 100%, transparent calc(var(--fr) - 0.5px), var(--ftl) var(--fr)) 0 0 / var(--fr) var(--fr) no-repeat,
+    radial-gradient(circle at 0 100%, transparent calc(var(--fr) - 0.5px), var(--ftr) var(--fr)) 100% 0 / var(--fr) var(--fr) no-repeat,
+    radial-gradient(circle at 100% 0, transparent calc(var(--fr) - 0.5px), var(--fbl) var(--fr)) 0 100% / var(--fr) var(--fr) no-repeat,
+    radial-gradient(circle at 0 0, transparent calc(var(--fr) - 0.5px), var(--fbr) var(--fr)) 100% 100% / var(--fr) var(--fr) no-repeat,
     linear-gradient(var(--gx), var(--gx)) 100% 50% / 1px 52% no-repeat,
     linear-gradient(var(--gy), var(--gy)) 50% 100% / 52% 1px no-repeat;
 }
 
-.c.o.ftl { --tl: var(--accent); }
-.c.o.ftr { --tr: var(--accent); }
-.c.o.fbl { --bl: var(--accent); }
-.c.o.fbr { --br: var(--accent); }
+.c.ftl { --ftl: var(--accent); }
+.c.ftr { --ftr: var(--accent); }
+.c.fbl { --fbl: var(--accent); }
+.c.fbr { --fbr: var(--accent); }
 .c.o.gr { --gx: var(--grid); }
 .c.o.gd { --gy: var(--grid); }
 
@@ -127,6 +181,7 @@
     0 var(--reach) 0 0 var(--bd),
     calc(-1 * var(--reach)) 0 0 0 var(--bl),
     var(--reach) 0 0 0 var(--br);
+  transition: box-shadow 0.3s var(--ease);
 }
 
 /* Icons are SVG masks so they follow the theme. */
@@ -178,26 +233,14 @@
   inset: 4%;
   border-radius: 50%;
   border: max(1.5px, calc(var(--cell) * 0.06)) solid var(--accent);
-  animation: boom 0.9s var(--out) both;
-}
-
-/* Long-press ring */
-.c.lp::after {
-  content: '';
-  position: absolute;
-  z-index: 2;
-  inset: -16%;
-  border-radius: 50%;
-  border: max(2px, calc(var(--cell) * 0.07)) solid var(--text);
-  animation: ring var(--lp) linear forwards;
-  pointer-events: none;
+  animation: boom 1.1s var(--ease) both;
 }
 
 /* ---- animations ---------------------------------------------------------------- */
 
-/* Revealed cells dissolve out of the shape as shrinking rounded squares. */
+/* Revealed cells melt out of the shape: the square rounds off, shrinks and fades. */
 .c.o.ar {
-  animation: num-in 0.46s var(--out) both;
+  animation: num-in 0.7s var(--ease) both;
 }
 
 .c.o.ar::after {
@@ -205,75 +248,123 @@
   position: absolute;
   inset: 0;
   background: var(--accent);
-  animation: dissolve 0.46s cubic-bezier(0.5, 0, 0.3, 1) both;
+  animation: dissolve 0.7s var(--ease) both;
   animation-delay: inherit;
 }
 
-.c.f.af::after,
+/* Placing a flag: the accent cell rounds off and turns grey, then the flag rises in. */
+.c.f.af::after {
+  animation: flag-morph 0.55s var(--ease) both;
+  animation-delay: var(--d, 0s);
+}
+
 .c.f.af::before {
-  animation: pop 0.4s var(--spring) both;
-  animation-delay: inherit;
+  animation: icon-in 0.45s var(--ease) both;
+  animation-delay: calc(0.18s + var(--d, 0s));
 }
 
-.c.h.au {
-  animation: fade-in 0.3s ease both;
+/* After a long-press the cell is already grey and round: just settle and bring the icon in. */
+.c.f.af.af-soft::after {
+  animation: settle 0.4s var(--ease) both;
+}
+
+.c.f.af.af-soft::before {
+  animation-delay: 0s;
+}
+
+/* Removing a flag: the grey square swells back into the shape and fades. */
+.c.h.au::after {
+  /* backwards, not both: once done, hover highlights must work again */
+  animation: unflag 0.5s var(--ease) backwards;
 }
 
 .c.h.m.am::before,
 .c.wf.am::before {
-  animation: pop 0.42s var(--spring) both;
+  animation: icon-in 0.55s var(--ease) both;
   animation-delay: inherit;
 }
 
 .c.o.aw {
-  animation: wave 0.6s var(--out) both;
+  animation: wave 0.9s var(--ease) both;
 }
 
 @keyframes dissolve {
   0% {
     transform: scale(1);
     border-radius: 0;
+    opacity: 1;
   }
-  45% {
-    transform: scale(0.7);
-    border-radius: 24%;
+  35% {
+    transform: scale(0.82);
+    border-radius: 28%;
+    opacity: 1;
   }
   100% {
-    transform: scale(0);
+    transform: scale(0.15);
     border-radius: 50%;
+    opacity: 0;
   }
 }
 
 @keyframes num-in {
   0%,
-  40% {
+  35% {
     color: transparent;
-  }
-}
-
-@keyframes pop {
-  0% {
-    transform: scale(0);
-    opacity: 0;
-  }
-  65% {
-    transform: scale(1.12);
-    opacity: 1;
+    transform: scale(0.7);
   }
   100% {
     transform: scale(1);
   }
 }
 
-@keyframes fade-in {
-  from {
-    opacity: 0.3;
+@keyframes flag-morph {
+  0% {
+    background-color: var(--accent);
+    transform: scale(1.22);
+    border-radius: calc(var(--r) * 0.4);
+  }
+  100% {
+    background-color: var(--flag-bg);
+    transform: scale(1);
+  }
+}
+
+@keyframes icon-in {
+  0% {
+    opacity: 0;
+    transform: translateY(18%) scale(0.6);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes settle {
+  0% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes unflag {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    background-color: var(--flag-bg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.2);
+    background-color: var(--accent);
   }
 }
 
 @keyframes wave {
-  40% {
-    transform: translateY(calc(var(--cell) * -0.2));
+  45% {
+    transform: translateY(calc(var(--cell) * -0.14));
     color: var(--accent);
   }
 }
@@ -284,22 +375,8 @@
     opacity: 1;
   }
   100% {
-    transform: scale(1.6);
+    transform: scale(1.7);
     opacity: 0;
-  }
-}
-
-@keyframes ring {
-  0% {
-    transform: scale(0.35);
-    opacity: 0;
-  }
-  35% {
-    opacity: 0.25;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 0.9;
   }
 }
 
@@ -309,19 +386,16 @@
   100% {
     translate: 0 0;
   }
-  15% {
-    translate: -7px 2px;
+  20% {
+    translate: -6px 1px;
   }
-  30% {
-    translate: 6px -2px;
-  }
-  45% {
-    translate: -5px 1px;
+  40% {
+    translate: 5px -1px;
   }
   60% {
-    translate: 4px 0;
+    translate: -3px 0;
   }
   80% {
-    translate: -2px 0;
+    translate: 2px 0;
   }
 }
