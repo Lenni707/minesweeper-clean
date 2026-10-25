@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Board, FLAGGED, HIDDEN, QUESTION, REVEALED } from './board';
+import { solve } from './solver';
 
 function seeded(seed: number): () => number {
   return () => {
@@ -187,12 +188,49 @@ describe('edge sizes', () => {
     const b = new Board(1, 20, 5, seeded(2));
     b.reveal(0, 0);
     expect(b.mine[0] + b.mine[1]).toBe(0);
-    expect(b.status).toBe('playing');
+    // guess-free on a strip means the mines sit together at the far end, so the first tap clears it
+    expect(b.status).toBe('won');
   });
 
   it('handles 100x100 with the max mine count', () => {
     const b = new Board(100, 100, 100 * 100 - 9, seeded(4));
     b.reveal(5050, 0);
     expect(b.status).toBe('won');
+  });
+});
+
+describe('guess-free boards', () => {
+  const sizes: [number, number, number][] = [
+    [9, 9, 10],
+    [16, 16, 40],
+    [30, 16, 99],
+    [30, 24, 150],
+    [50, 30, 300],
+  ];
+  for (const [rows, cols, mines] of sizes) {
+    it(`${cols}x${rows}/${mines} can be solved by logic from the first tap`, () => {
+      let slowest = 0;
+      for (let seed = 1; seed <= 12; seed++) {
+        const b = new Board(rows, cols, mines, seeded(seed));
+        const tap = Math.floor(b.size / 2);
+        const t0 = performance.now();
+        b.reveal(tap);
+        slowest = Math.max(slowest, performance.now() - t0);
+        expect(b.mine.reduce((a, m) => a + m, 0)).toBe(mines);
+        expect(solve(b, tap).solved).toBe(true);
+      }
+      console.log(`${cols}x${rows}/${mines}: slowest first tap ${slowest.toFixed(0)}ms`);
+    });
+  }
+
+  it('a 50/50 is detected as stuck', () => {
+    // Two cells in a corner with one mine between them and nothing else to tell them apart.
+    const b = fixed(2, 3, [2]);
+    b.mine.fill(0);
+    b.mine[2] = 1;
+    const r = solve({ rows: 2, cols: 3, mines: 1, mine: b.mine, adj: b.adj }, 0);
+    // corner (0) opens a 1; cells 2 and 5 can't be told apart
+    expect(r.solved).toBe(false);
+    expect(r.stuckMines).toContain(2);
   });
 });

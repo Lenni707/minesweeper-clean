@@ -1,5 +1,7 @@
 // Pure Minesweeper rules. No DOM in here.
 
+import { neighbourTable, solve } from './solver';
+
 export type Status = 'ready' | 'playing' | 'won' | 'lost';
 
 export const HIDDEN = 0;
@@ -32,6 +34,9 @@ export interface SavedGame {
   exploded: number;
 }
 
+/** How long the first tap may spend making a board guess-free (ms). */
+const GUESS_FREE_BUDGET_MS = 600;
+
 const EMPTY: MoveResult = { opened: [], exploded: -1 };
 
 export class Board {
@@ -50,6 +55,8 @@ export class Board {
   private elapsedMs = 0;
   private runningSince: number | null = null;
   private readonly rng: () => number;
+  /** Off only in tests that need plain random layouts. */
+  guessFree = true;
 
   constructor(rows: number, cols: number, mines: number, rng: () => number = Math.random) {
     this.rows = Math.max(1, Math.floor(rows));
@@ -90,22 +97,58 @@ export class Board {
     return out;
   }
 
-  /** Lays the mines so that `safe` (and its neighbours, when there's room) stays clear. */
+  /** Lays the mines so that `safe` (and its neighbours, when there's room) stays clear, then makes the board guess-free. */
   private place(safe: number): void {
     const keepClear = new Set<number>([safe]);
     const zone = this.neighbors(safe);
     if (this.size - 1 - zone.length >= this.mines) zone.forEach((n) => keepClear.add(n));
-
     const candidates: number[] = [];
     for (let i = 0; i < this.size; i++) if (!keepClear.has(i)) candidates.push(i);
-    // Partial Fisher-Yates: the first `mines` entries become mines.
+
+    if (!this.guessFree) {
+      this.scatter(candidates);
+    } else {
+      // Like the original, boards never need a guess. While the logic solver gets stuck, one of the mines
+      // it can't place moves somewhere out of sight (late on: to any hidden safe cell) and it tries again.
+      // A layout that stops improving is thrown away. Very dense custom boards may run out of time;
+      // they keep the last layout.
+      const nb = neighbourTable(this.rows, this.cols);
+      const deadline = Date.now() + GUESS_FREE_BUDGET_MS;
+      fresh: while (true) {
+        this.scatter(candidates);
+        let best = -1;
+        let stale = 0;
+        while (true) {
+          const r = solve(this, safe, nb);
+          if (r.solved || Date.now() > deadline) break fresh;
+          if (r.opened > best) {
+            best = r.opened;
+            stale = 0;
+          } else if (++stale > 25) continue fresh;
+          const froms = r.stuckMines.length ? r.stuckMines : r.hiddenMines;
+          const tos = r.interior.length ? r.interior : r.hiddenSafe;
+          if (froms.length === 0 || tos.length === 0) continue fresh;
+          const from = froms[Math.floor(this.rng() * froms.length)];
+          const to = tos[Math.floor(this.rng() * tos.length)];
+          this.mine[from] = 0;
+          this.mine[to] = 1;
+          for (const n of nb[from]) this.adj[n]--;
+          for (const n of nb[to]) this.adj[n]++;
+        }
+      }
+    }
+    this.placed = true;
+  }
+
+  /** Random layout over `candidates` (partial Fisher-Yates: the first `mines` entries become mines). */
+  private scatter(candidates: number[]): void {
+    this.mine.fill(0);
     for (let k = 0; k < this.mines; k++) {
       const j = k + Math.floor(this.rng() * (candidates.length - k));
       [candidates[k], candidates[j]] = [candidates[j], candidates[k]];
       this.mine[candidates[k]] = 1;
     }
     this.computeAdjacency();
-    this.placed = true;
   }
 
   private computeAdjacency(): void {
